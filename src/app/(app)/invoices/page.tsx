@@ -6,7 +6,6 @@ import { formatEGP, formatDate } from '@/lib/format'
 import StatusBadge from '@/components/ui/StatusBadge'
 import InvoiceFilters from '@/components/invoices/InvoiceFilters'
 import { InvoiceStatus } from '@prisma/client'
-
 export default async function InvoicesPage({
   searchParams,
 }: {

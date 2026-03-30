@@ -60,6 +60,7 @@ export async function createInvoiceAction(data: {
 
   revalidatePath('/invoices')
   revalidatePath(`/clients/${data.clientId}`)
+  revalidatePath('/dashboard')
   redirect(`/invoices/${invoice.id}`)
 }
 
@@ -74,6 +75,7 @@ export async function updateInvoiceStatusAction(
   })
   revalidatePath(`/invoices/${invoiceId}`)
   revalidatePath('/invoices')
+  revalidatePath('/dashboard')
 }
 
 export async function recordPaymentAction(

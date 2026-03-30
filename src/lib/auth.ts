@@ -1,26 +1,29 @@
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
+import { cache } from 'react'
 
-export async function getCurrentUserId(): Promise<string> {
+// cache() deduplicates calls within a single request render tree
+export const getCurrentUserId = cache(async (): Promise<string> => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  try {
-    await prisma.user.upsert({
-      where: { id: user.id },
-      update: { email: user.email! },
-      create: {
+  // Only write to DB on first visit — skip the upsert on every subsequent request
+  const existing = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { id: true },
+  })
+
+  if (!existing) {
+    await prisma.user.create({
+      data: {
         id: user.id,
         email: user.email!,
         name: user.user_metadata?.name ?? null,
       },
     })
-  } catch (err) {
-    console.error('[auth] user upsert failed:', err)
-    throw err
   }
 
   return user.id
-}
+})
