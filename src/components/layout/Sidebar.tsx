@@ -47,8 +47,8 @@ const navItems = [
     ),
   },
   {
-    label: 'Team Payments',
-    href: '/payments',
+    label: 'Team & Payroll',
+    href: '/team',
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -71,12 +71,12 @@ const navItems = [
 export default function Sidebar({ user }: { user: User }) {
   const pathname = usePathname()
   const router = useRouter()
-  const supabase = createClient()
 
   const displayName = user.user_metadata?.name || user.email?.split('@')[0] || 'User'
   const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
 
   async function handleSignOut() {
+    const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
   }
