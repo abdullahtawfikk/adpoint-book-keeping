@@ -8,20 +8,17 @@ export default async function TeamPage() {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const members = await prisma.teamMember.findMany({
-    where: { userId },
-    include: {
-      payments: {
-        orderBy: { date: 'desc' },
-      },
-    },
-    orderBy: { createdAt: 'asc' },
-  })
-
-  const monthlyPayroll = await prisma.teamPayment.aggregate({
-    where: { userId, date: { gte: startOfMonth } },
-    _sum: { amount: true },
-  })
+  const [members, monthlyPayroll] = await Promise.all([
+    prisma.teamMember.findMany({
+      where: { userId },
+      include: { payments: { orderBy: { date: 'desc' } } },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.teamPayment.aggregate({
+      where: { userId, date: { gte: startOfMonth } },
+      _sum: { amount: true },
+    }),
+  ])
 
   const rows = members.map(m => ({
     id: m.id,
