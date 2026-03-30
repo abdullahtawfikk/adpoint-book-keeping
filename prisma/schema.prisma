@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clients     Client[]
+  invoices    Invoice[]
+  expenses    Expense[]
+  teamMembers TeamMember[]
+  teamPayments TeamPayment[]
+}
+
+model Client {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  email     String?
+  phone     String?
+  company   String?
+  address   String?
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoices  Invoice[]
+}
+
+model Invoice {
+  id          String        @id @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  number      String        // e.g. INV-0001
+  title       String?
+  status      InvoiceStatus @default(DRAFT)
+  issueDate   DateTime      @default(now())
+  dueDate     DateTime
+  notes       String?
+
+  subtotal    Float         @default(0)
+  discount    Float         @default(0)
+  tax         Float         @default(0) // percentage, e.g. 14 for 14%
+  total       Float         @default(0)
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  items       InvoiceItem[]
+  payments    Payment[]
+}
+
+model Payment {
+  id        String   @id @default(uuid())
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount    Float
+  date      DateTime
+  method    String?
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model InvoiceItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  description String
+  quantity    Float
+  unitPrice   Float
+  total       Float
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  description String
+  amount      Float
+  category    ExpenseCategory
+  date        DateTime
+  project     String?
+  isRecurring Boolean         @default(false)
+  notes       String?
+  receipt     String?
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  role      String?
+  email     String?
+  phone     String?
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments  TeamPayment[]
+}
+
+model TeamPayment {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberId    String?
+  member      TeamMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  name        String
+  role        String?
+  amount      Float
+  date        DateTime
+  description String?
+  status      PaymentStatus @default(PAID)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum ExpenseCategory {
+  SOFTWARE
+  MARKETING
+  SALARIES
+  RENT
+  EQUIPMENT
+  TRAVEL
+  UTILITIES
+  TAXES
+  OTHER
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  CANCELLED
+}
