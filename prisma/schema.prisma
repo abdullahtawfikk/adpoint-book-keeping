@@ -65,29 +65,50 @@ model Client {
 }
 
 model Invoice {
-  id          String        @id @default(uuid())
-  userId      String
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clientId    String
-  client      Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  id               String           @id @default(uuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId         String
+  client           Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
-  number      String        // e.g. INV-0001
-  title       String?
-  status      InvoiceStatus @default(DRAFT)
-  issueDate   DateTime      @default(now())
-  dueDate     DateTime
-  notes       String?
+  number           String           // e.g. INV-0001
+  title            String?
+  status           InvoiceStatus    @default(DRAFT)
+  paymentStructure PaymentStructure @default(FULL)
+  issueDate        DateTime         @default(now())
+  dueDate          DateTime
+  notes            String?
 
-  subtotal    Float         @default(0)
-  discount    Float         @default(0)
-  tax         Float         @default(0) // percentage, e.g. 14 for 14%
-  total       Float         @default(0)
+  subtotal         Float            @default(0)
+  discount         Float            @default(0)
+  tax              Float            @default(0) // percentage, e.g. 14 for 14%
+  total            Float            @default(0)
 
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  items       InvoiceItem[]
-  payments    Payment[]
+  items            InvoiceItem[]
+  payments         Payment[]
+  phases           InvoicePhase[]
+}
+
+model InvoicePhase {
+  id        String      @id @default(uuid())
+  invoiceId String
+  invoice   Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  name      String
+  amount    Float
+  dueDate   DateTime
+  paidDate  DateTime?
+  status    PhaseStatus @default(UNPAID)
+  notes     String?
+  sortOrder Int         @default(0)
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@map("invoice_phases")
 }
 
 model Payment {
@@ -168,9 +189,21 @@ model TeamPayment {
 enum InvoiceStatus {
   DRAFT
   SENT
+  PARTIALLY_PAID
   PAID
   OVERDUE
   CANCELLED
+}
+
+enum PaymentStructure {
+  FULL
+  PARTIAL
+  SCHEDULED
+}
+
+enum PhaseStatus {
+  UNPAID
+  PAID
 }
 
 enum ExpenseCategory {

@@ -15,7 +15,7 @@ export default async function EditInvoicePage({
   const [invoice, clients] = await Promise.all([
     prisma.invoice.findFirst({
       where: { id, userId },
-      include: { items: true },
+      include: { items: true, phases: { orderBy: { sortOrder: 'asc' } } },
     }),
     prisma.client.findMany({
       where: { userId },
@@ -40,7 +40,14 @@ export default async function EditInvoicePage({
     tax: invoice.tax,
     discount: invoice.discount,
     notes: invoice.notes,
-    status: invoice.status as 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED',
+    status: invoice.status as 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'PARTIALLY_PAID',
+    paymentStructure: invoice.paymentStructure as 'FULL' | 'PARTIAL' | 'SCHEDULED',
+    phases: invoice.phases.map((p, i) => ({
+      name: p.name,
+      amount: p.amount,
+      dueDate: p.dueDate.toISOString().split('T')[0],
+      sortOrder: i,
+    })),
   }
 
   return (

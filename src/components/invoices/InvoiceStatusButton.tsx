@@ -10,6 +10,10 @@ const transitions: Record<string, { label: string; next: InvoiceStatus }[]> = {
     { label: 'Mark as Paid', next: 'PAID' },
     { label: 'Mark as Overdue', next: 'OVERDUE' },
   ],
+  PARTIALLY_PAID: [
+    { label: 'Mark as Paid', next: 'PAID' },
+    { label: 'Mark as Overdue', next: 'OVERDUE' },
+  ],
   OVERDUE: [
     { label: 'Mark as Paid', next: 'PAID' },
     { label: 'Mark as Sent', next: 'SENT' },

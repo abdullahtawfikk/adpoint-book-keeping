@@ -31,10 +31,11 @@ interface ActivityItem {
 interface UpcomingInvoice {
   id: string
   number: string
-  total: number
+  amount: number
   status: string
   dueDate: string
   client: { name: string }
+  phaseName?: string
 }
 
 export interface DashboardData {
@@ -174,18 +175,20 @@ export default function DashboardClient({
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {data.upcomingInvoices.map((inv) => (
+              {data.upcomingInvoices.map((inv, i) => (
                 <Link
-                  key={inv.id}
+                  key={`${inv.id}-${i}`}
                   href={`/invoices/${inv.id}`}
                   className="flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 transition-colors"
                 >
                   <div>
                     <p className="text-sm font-medium text-slate-900">{inv.client.name}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{inv.number} · Due {formatDate(inv.dueDate)}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {inv.number}{inv.phaseName ? ` · ${inv.phaseName}` : ''} · Due {formatDate(inv.dueDate)}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-900">{formatEGP(inv.total)}</p>
+                    <p className="text-sm font-semibold text-slate-900">{formatEGP(inv.amount)}</p>
                     <StatusBadge status={inv.status} />
                   </div>
                 </Link>

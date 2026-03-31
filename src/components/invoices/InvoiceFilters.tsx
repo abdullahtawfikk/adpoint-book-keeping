@@ -6,6 +6,7 @@ const statuses = [
   { label: 'All', value: '' },
   { label: 'Draft', value: 'DRAFT' },
   { label: 'Sent', value: 'SENT' },
+  { label: 'Partial', value: 'PARTIALLY_PAID' },
   { label: 'Paid', value: 'PAID' },
   { label: 'Overdue', value: 'OVERDUE' },
 ]

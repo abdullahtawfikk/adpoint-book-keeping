@@ -18,13 +18,16 @@ async function getDashboardData(userId: string, year: number, month: number): Pr
     monthExpenses,
     allTimeRevenue,
     allTimeExpenses,
-    unpaidInvoices,
-    overdueInvoices,
+    unpaidNonScheduled,
+    unpaidPhases,
+    overdueNonScheduled,
+    overduePhases,
     last6Revenue,
     last6Expenses,
     recentInvoices,
     recentExpenses,
-    upcomingInvoices,
+    upcomingNonScheduled,
+    upcomingPhases,
   ] = await Promise.all([
     prisma.invoice.aggregate({
       where: { userId, status: 'PAID', issueDate: { gte: startOfMonth, lte: endOfMonth } },
@@ -42,14 +45,28 @@ async function getDashboardData(userId: string, year: number, month: number): Pr
       where: { userId },
       _sum: { amount: true },
     }),
+    // Unpaid non-scheduled invoices
     prisma.invoice.aggregate({
-      where: { userId, status: { in: ['SENT', 'OVERDUE'] }, issueDate: { lte: endOfMonth } },
+      where: { userId, status: { in: ['SENT', 'OVERDUE', 'PARTIALLY_PAID'] }, paymentStructure: { not: 'SCHEDULED' } },
       _sum: { total: true },
       _count: true,
     }),
+    // Unpaid phases from scheduled invoices
+    prisma.invoicePhase.aggregate({
+      where: { status: 'UNPAID', invoice: { userId, paymentStructure: 'SCHEDULED' } },
+      _sum: { amount: true },
+      _count: true,
+    }),
+    // Overdue non-scheduled invoices
     prisma.invoice.aggregate({
-      where: { userId, status: 'OVERDUE', dueDate: { lte: endOfMonth } },
+      where: { userId, status: 'OVERDUE', paymentStructure: { not: 'SCHEDULED' } },
       _sum: { total: true },
+      _count: true,
+    }),
+    // Overdue unpaid phases
+    prisma.invoicePhase.aggregate({
+      where: { status: 'UNPAID', dueDate: { lt: now }, invoice: { userId, paymentStructure: 'SCHEDULED' } },
+      _sum: { amount: true },
       _count: true,
     }),
     prisma.invoice.findMany({
@@ -71,13 +88,26 @@ async function getDashboardData(userId: string, year: number, month: number): Pr
       orderBy: { date: 'desc' },
       take: 8,
     }),
+    // Upcoming non-scheduled invoices due in 7 days
     prisma.invoice.findMany({
       where: {
         userId,
-        status: { in: ['SENT', 'OVERDUE'] },
+        status: { in: ['SENT', 'OVERDUE', 'PARTIALLY_PAID'] },
+        paymentStructure: { not: 'SCHEDULED' },
         dueDate: { lte: in7Days, gte: now },
       },
       include: { client: { select: { name: true } } },
+      orderBy: { dueDate: 'asc' },
+      take: 5,
+    }),
+    // Upcoming phases due in 7 days
+    prisma.invoicePhase.findMany({
+      where: {
+        status: 'UNPAID',
+        dueDate: { lte: in7Days, gte: now },
+        invoice: { userId, paymentStructure: 'SCHEDULED' },
+      },
+      include: { invoice: { include: { client: { select: { name: true } } } } },
       orderBy: { dueDate: 'asc' },
       take: 5,
     }),
@@ -128,25 +158,38 @@ async function getDashboardData(userId: string, year: number, month: number): Pr
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 8)
 
+  const upcomingItems = [
+    ...upcomingNonScheduled.map(inv => ({
+      id: inv.id,
+      number: inv.number,
+      amount: inv.total,
+      status: inv.status,
+      dueDate: inv.dueDate.toISOString(),
+      client: inv.client,
+    })),
+    ...upcomingPhases.map(phase => ({
+      id: phase.invoice.id,
+      number: phase.invoice.number,
+      amount: phase.amount,
+      status: phase.invoice.status,
+      dueDate: phase.dueDate.toISOString(),
+      client: phase.invoice.client,
+      phaseName: phase.name,
+    })),
+  ].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).slice(0, 5)
+
   return {
     monthRevenue: monthRevenue._sum.total ?? 0,
     monthExpenses: monthExpenses._sum.amount ?? 0,
     allTimeRevenue: allTimeRevenue._sum.total ?? 0,
     allTimeExpenses: allTimeExpenses._sum.amount ?? 0,
-    unpaidTotal: unpaidInvoices._sum.total ?? 0,
-    unpaidCount: unpaidInvoices._count,
-    overdueTotal: overdueInvoices._sum.total ?? 0,
-    overdueCount: overdueInvoices._count,
+    unpaidTotal: (unpaidNonScheduled._sum.total ?? 0) + (unpaidPhases._sum.amount ?? 0),
+    unpaidCount: unpaidNonScheduled._count + (unpaidPhases._count ?? 0),
+    overdueTotal: (overdueNonScheduled._sum.total ?? 0) + (overduePhases._sum.amount ?? 0),
+    overdueCount: overdueNonScheduled._count + (overduePhases._count ?? 0),
     chartData,
     activity,
-    upcomingInvoices: upcomingInvoices.map(inv => ({
-      id: inv.id,
-      number: inv.number,
-      total: inv.total,
-      status: inv.status,
-      dueDate: inv.dueDate.toISOString(),
-      client: inv.client,
-    })),
+    upcomingInvoices: upcomingItems,
   }
 }
 

@@ -7,6 +7,7 @@ import { formatEGP, formatDate } from '@/lib/format'
 import StatusBadge from '@/components/ui/StatusBadge'
 import InvoiceStatusButton from '@/components/invoices/InvoiceStatusButton'
 import RecordPaymentModal from '@/components/invoices/RecordPaymentModal'
+import PhaseTimeline from '@/components/invoices/PhaseTimeline'
 
 export default async function InvoiceDetailPage({
   params,
@@ -23,6 +24,7 @@ export default async function InvoiceDetailPage({
         client: true,
         items: true,
         payments: { orderBy: { date: 'desc' } },
+        phases: { orderBy: { sortOrder: 'asc' } },
       },
     }),
     prisma.businessSettings.findUnique({
@@ -33,11 +35,13 @@ export default async function InvoiceDetailPage({
 
   if (!invoice) notFound()
 
+  const amountPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
+  const remaining = invoice.total - amountPaid
+
   const bizName = businessSettings?.businessName || 'My Business'
   const initials = bizName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || 'B'
 
-  const amountPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
-  const remaining = invoice.total - amountPaid
+  const hasSchedule = invoice.paymentStructure === 'SCHEDULED' && invoice.phases.length > 0
 
   return (
     <div className="p-6 md:p-8">
@@ -55,7 +59,7 @@ export default async function InvoiceDetailPage({
           <InvoiceStatusButton invoiceId={invoice.id} status={invoice.status} />
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (
+          {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && !hasSchedule && (
             <RecordPaymentModal
               invoiceId={invoice.id}
               invoiceTotal={invoice.total}
@@ -173,7 +177,7 @@ export default async function InvoiceDetailPage({
               <span>Total</span>
               <span>{formatEGP(invoice.total)}</span>
             </div>
-            {amountPaid > 0 && (
+            {!hasSchedule && amountPaid > 0 && (
               <>
                 <div className="flex justify-between text-emerald-600">
                   <span>Amount Paid</span>
@@ -197,7 +201,26 @@ export default async function InvoiceDetailPage({
         )}
       </div>
 
-      {/* Payment history */}
+      {/* Payment schedule */}
+      {hasSchedule && (
+        <div className="mb-6">
+          <PhaseTimeline
+            invoiceId={invoice.id}
+            invoiceTotal={invoice.total}
+            phases={invoice.phases.map((p) => ({
+              id: p.id,
+              name: p.name,
+              amount: p.amount,
+              dueDate: p.dueDate,
+              paidDate: p.paidDate,
+              status: p.status,
+              sortOrder: p.sortOrder,
+            }))}
+          />
+        </div>
+      )}
+
+      {/* Payment history (for non-scheduled or if there are manual payments) */}
       {invoice.payments.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100">

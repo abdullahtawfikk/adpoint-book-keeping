@@ -14,12 +14,15 @@ interface InvoiceRowProps {
     total: number
     dueDate: Date
     client: { name: string }
+    phases?: { id: string; status: string }[]
   }
   formattedTotal: string
   formattedDue: string
 }
 
 export default function InvoiceRow({ invoice, formattedTotal, formattedDue }: InvoiceRowProps) {
+  const phasesTotal = invoice.phases?.length ?? 0
+  const phasesPaid = invoice.phases?.filter(p => p.status === 'PAID').length ?? 0
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [confirming, setConfirming] = useState(false)
@@ -59,6 +62,9 @@ export default function InvoiceRow({ invoice, formattedTotal, formattedDue }: In
       <td className="px-6 py-4">
         <p className="font-medium text-slate-900">{invoice.number}</p>
         {invoice.title && <p className="text-xs text-slate-400 mt-0.5">{invoice.title}</p>}
+        {phasesTotal > 0 && (
+          <p className="text-xs text-purple-600 mt-0.5">{phasesPaid}/{phasesTotal} phases</p>
+        )}
       </td>
       <td className="px-6 py-4 text-slate-600">{invoice.client.name}</td>
       <td className="px-6 py-4"><StatusBadge status={invoice.status as never} /></td>

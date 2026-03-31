@@ -85,6 +85,19 @@ const s = StyleSheet.create({
   footerNoteBox: { marginBottom: 16 },
   footerNoteText: { fontSize: 8, color: '#94a3b8', textAlign: 'center', lineHeight: 1.5 },
 
+  // Payment schedule
+  scheduleBox: { marginBottom: 24 },
+  scheduleTitle: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#0f172a', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
+  scheduleHeader: { flexDirection: 'row', paddingVertical: 5, backgroundColor: '#f8fafc', paddingHorizontal: 8, borderRadius: 4 },
+  scheduleRow: { flexDirection: 'row', paddingVertical: 6, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  scheduleColName: { flex: 1 },
+  scheduleColAmt: { width: 80, textAlign: 'right' },
+  scheduleColDate: { width: 80, textAlign: 'right' },
+  scheduleColStatus: { width: 48, textAlign: 'right' },
+  scheduleSummaryRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 6, gap: 24 },
+  scheduleSummaryLabel: { fontSize: 8, color: '#64748b' },
+  scheduleSummaryValue: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#0f172a' },
+
   // Footer
   footer: { borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   footerLeft: { fontSize: 8, color: '#94a3b8' },
@@ -95,6 +108,7 @@ interface InvoiceData {
   number: string
   title: string | null
   status: string
+  paymentStructure?: string
   issueDate: Date
   dueDate: Date
   subtotal: number
@@ -114,6 +128,12 @@ interface InvoiceData {
     quantity: number
     unitPrice: number
     total: number
+  }[]
+  phases?: {
+    name: string
+    amount: number
+    dueDate: Date
+    status: string
   }[]
 }
 
@@ -294,6 +314,56 @@ export function buildInvoiceDocument(
               { style: s.notesBox },
               React.createElement(Text, { style: s.sectionLabel }, 'Notes'),
               React.createElement(Text, { style: s.notesText }, invoice.notes),
+            )
+          : null,
+
+        // ── Payment Schedule ─────────────────────────────────────────────────
+        invoice.paymentStructure === 'SCHEDULED' && invoice.phases && invoice.phases.length > 0
+          ? React.createElement(
+              View,
+              { style: s.scheduleBox },
+              React.createElement(Text, { style: s.scheduleTitle }, 'Payment Schedule'),
+              // Header
+              React.createElement(
+                View,
+                { style: s.scheduleHeader },
+                React.createElement(View, { style: s.scheduleColName }, React.createElement(Text, { style: s.thText }, 'Phase')),
+                React.createElement(View, { style: s.scheduleColAmt }, React.createElement(Text, { style: s.thText }, 'Amount')),
+                React.createElement(View, { style: s.scheduleColDate }, React.createElement(Text, { style: s.thText }, 'Due Date')),
+                React.createElement(View, { style: s.scheduleColStatus }, React.createElement(Text, { style: s.thText }, 'Status')),
+              ),
+              // Rows
+              ...invoice.phases.map((phase, i) =>
+                React.createElement(
+                  View,
+                  { key: String(i), style: s.scheduleRow },
+                  React.createElement(View, { style: s.scheduleColName }, React.createElement(Text, { style: s.tdText }, phase.name)),
+                  React.createElement(View, { style: s.scheduleColAmt }, React.createElement(Text, { style: s.tdText }, formatEGP(phase.amount))),
+                  React.createElement(View, { style: s.scheduleColDate }, React.createElement(Text, { style: s.tdText }, formatDate(phase.dueDate))),
+                  React.createElement(View, { style: s.scheduleColStatus },
+                    React.createElement(Text, {
+                      style: { fontSize: 8, color: phase.status === 'PAID' ? '#16a34a' : '#64748b' },
+                    }, phase.status === 'PAID' ? 'Paid' : 'Unpaid')
+                  ),
+                )
+              ),
+              // Summary
+              React.createElement(
+                View,
+                { style: s.scheduleSummaryRow },
+                React.createElement(View, { style: { flexDirection: 'row', gap: 6 } },
+                  React.createElement(Text, { style: s.scheduleSummaryLabel }, 'Paid:'),
+                  React.createElement(Text, { style: { ...s.scheduleSummaryValue, color: '#16a34a' } },
+                    formatEGP(invoice.phases.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0))
+                  ),
+                ),
+                React.createElement(View, { style: { flexDirection: 'row', gap: 6 } },
+                  React.createElement(Text, { style: s.scheduleSummaryLabel }, 'Remaining:'),
+                  React.createElement(Text, { style: s.scheduleSummaryValue },
+                    formatEGP(invoice.phases.filter(p => p.status === 'UNPAID').reduce((sum, p) => sum + p.amount, 0))
+                  ),
+                ),
+              ),
             )
           : null,
 

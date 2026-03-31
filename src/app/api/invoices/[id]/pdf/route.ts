@@ -15,7 +15,7 @@ export async function GET(
 
   const invoice = await prisma.invoice.findFirst({
     where: { id, userId: user.id },
-    include: { client: true, items: true },
+    include: { client: true, items: true, phases: { orderBy: { sortOrder: 'asc' } } },
   })
 
   if (!invoice) return new Response('Not found', { status: 404 })

@@ -16,13 +16,16 @@ export default async function InvoicesPage({
   const userId = await getCurrentUserId()
 
   const where: { userId: string; status?: InvoiceStatus } = { userId }
-  if (status && ['DRAFT', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED'].includes(status)) {
+  if (status && ['DRAFT', 'SENT', 'PARTIALLY_PAID', 'PAID', 'OVERDUE', 'CANCELLED'].includes(status)) {
     where.status = status as InvoiceStatus
   }
 
   const invoices = await prisma.invoice.findMany({
     where,
-    include: { client: { select: { name: true } } },
+    include: {
+      client: { select: { name: true } },
+      phases: { select: { id: true, status: true } },
+    },
     orderBy: { createdAt: 'desc' },
   })
 
