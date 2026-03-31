@@ -3,6 +3,7 @@
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -41,7 +42,12 @@ function CustomTooltip({ active, payload, label }: any) {
   )
 }
 
-export default function RevenueChart({ data }: { data: ChartData[] }) {
+interface RevenueChartProps {
+  data: ChartData[]
+  selectedMonthIndex?: number
+}
+
+export default function RevenueChart({ data, selectedMonthIndex }: RevenueChartProps) {
   return (
     <ResponsiveContainer width="100%" height={240}>
       <BarChart data={data} barGap={4} barCategoryGap="30%">
@@ -65,8 +71,22 @@ export default function RevenueChart({ data }: { data: ChartData[] }) {
           iconSize={8}
           wrapperStyle={{ fontSize: 12, color: '#64748b', paddingTop: 12 }}
         />
-        <Bar dataKey="Revenue" fill="#0f172a" radius={[4, 4, 0, 0]} />
-        <Bar dataKey="Expenses" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="Revenue" fill="#0f172a" radius={[4, 4, 0, 0]}>
+          {data.map((_, index) => (
+            <Cell
+              key={`rev-${index}`}
+              fill={selectedMonthIndex !== undefined && index === selectedMonthIndex ? '#2563eb' : '#0f172a'}
+            />
+          ))}
+        </Bar>
+        <Bar dataKey="Expenses" fill="#e2e8f0" radius={[4, 4, 0, 0]}>
+          {data.map((_, index) => (
+            <Cell
+              key={`exp-${index}`}
+              fill={selectedMonthIndex !== undefined && index === selectedMonthIndex ? '#93c5fd' : '#e2e8f0'}
+            />
+          ))}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   )

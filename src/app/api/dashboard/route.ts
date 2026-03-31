@@ -1,15 +1,25 @@
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import DashboardClient, { type DashboardData } from '@/components/dashboard/DashboardClient'
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-async function getDashboardData(userId: string, year: number, month: number): Promise<DashboardData> {
+export async function GET(request: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { searchParams } = new URL(request.url)
+  const now = new Date()
+  const year = parseInt(searchParams.get('year') ?? String(now.getFullYear()))
+  const month = parseInt(searchParams.get('month') ?? String(now.getMonth() + 1)) // 1-indexed
+
   const startOfMonth = new Date(year, month - 1, 1)
   const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999)
+
+  // Chart: 6 months ending at selected month
   const sixMonthsAgo = new Date(year, month - 6, 1)
 
-  const now = new Date()
   const in7Days = new Date(now)
   in7Days.setDate(in7Days.getDate() + 7)
 
@@ -27,53 +37,54 @@ async function getDashboardData(userId: string, year: number, month: number): Pr
     upcomingInvoices,
   ] = await Promise.all([
     prisma.invoice.aggregate({
-      where: { userId, status: 'PAID', issueDate: { gte: startOfMonth, lte: endOfMonth } },
+      where: { userId: user.id, status: 'PAID', issueDate: { gte: startOfMonth, lte: endOfMonth } },
       _sum: { total: true },
     }),
     prisma.expense.aggregate({
-      where: { userId, date: { gte: startOfMonth, lte: endOfMonth } },
+      where: { userId: user.id, date: { gte: startOfMonth, lte: endOfMonth } },
       _sum: { amount: true },
     }),
     prisma.invoice.aggregate({
-      where: { userId, status: 'PAID' },
+      where: { userId: user.id, status: 'PAID' },
       _sum: { total: true },
     }),
     prisma.expense.aggregate({
-      where: { userId },
+      where: { userId: user.id },
       _sum: { amount: true },
     }),
     prisma.invoice.aggregate({
-      where: { userId, status: { in: ['SENT', 'OVERDUE'] }, issueDate: { lte: endOfMonth } },
+      where: { userId: user.id, status: { in: ['SENT', 'OVERDUE'] }, issueDate: { lte: endOfMonth } },
       _sum: { total: true },
       _count: true,
     }),
     prisma.invoice.aggregate({
-      where: { userId, status: 'OVERDUE', dueDate: { lte: endOfMonth } },
+      where: { userId: user.id, status: 'OVERDUE', dueDate: { lte: endOfMonth } },
       _sum: { total: true },
       _count: true,
     }),
     prisma.invoice.findMany({
-      where: { userId, status: 'PAID', issueDate: { gte: sixMonthsAgo, lte: endOfMonth } },
+      where: { userId: user.id, status: 'PAID', issueDate: { gte: sixMonthsAgo, lte: endOfMonth } },
       select: { total: true, issueDate: true },
     }),
     prisma.expense.findMany({
-      where: { userId, date: { gte: sixMonthsAgo, lte: endOfMonth } },
+      where: { userId: user.id, date: { gte: sixMonthsAgo, lte: endOfMonth } },
       select: { amount: true, date: true },
     }),
     prisma.invoice.findMany({
-      where: { userId },
+      where: { userId: user.id },
       include: { client: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
       take: 8,
     }),
     prisma.expense.findMany({
-      where: { userId },
+      where: { userId: user.id },
       orderBy: { date: 'desc' },
       take: 8,
     }),
+    // Upcoming invoices are always real-time (next 7 days from now)
     prisma.invoice.findMany({
       where: {
-        userId,
+        userId: user.id,
         status: { in: ['SENT', 'OVERDUE'] },
         dueDate: { lte: in7Days, gte: now },
       },
@@ -83,6 +94,7 @@ async function getDashboardData(userId: string, year: number, month: number): Pr
     }),
   ])
 
+  // Build 6-month chart data ending at selected month
   const chartData = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(year, month - 6 + i, 1)
     const yr = d.getFullYear()
@@ -128,7 +140,7 @@ async function getDashboardData(userId: string, year: number, month: number): Pr
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 8)
 
-  return {
+  return NextResponse.json({
     monthRevenue: monthRevenue._sum.total ?? 0,
     monthExpenses: monthExpenses._sum.amount ?? 0,
     allTimeRevenue: allTimeRevenue._sum.total ?? 0,
@@ -147,49 +159,5 @@ async function getDashboardData(userId: string, year: number, month: number): Pr
       dueDate: inv.dueDate.toISOString(),
       client: inv.client,
     })),
-  }
-}
-
-export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { name: true },
   })
-
-  const now = new Date()
-  const currentYear = now.getFullYear()
-  const currentMonth = now.getMonth() + 1 // 1-indexed
-
-  let initialData: DashboardData
-  try {
-    initialData = await getDashboardData(user.id, currentYear, currentMonth)
-  } catch {
-    initialData = {
-      monthRevenue: 0, monthExpenses: 0,
-      allTimeRevenue: 0, allTimeExpenses: 0,
-      unpaidTotal: 0, unpaidCount: 0,
-      overdueTotal: 0, overdueCount: 0,
-      chartData: [],
-      activity: [],
-      upcomingInvoices: [],
-    }
-  }
-
-  const displayName = dbUser?.name?.split(' ')[0] || user.user_metadata?.name?.split(' ')[0] || 'there'
-  const hour = now.getHours()
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-
-  return (
-    <DashboardClient
-      greeting={greeting}
-      displayName={displayName}
-      initialData={initialData}
-      initialYear={currentYear}
-      initialMonth={currentMonth}
-    />
-  )
 }
