@@ -2,9 +2,15 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
+
+interface BusinessBranding {
+  businessName: string | null
+  logoUrl: string | null
+}
 
 const navItems = [
   {
@@ -69,7 +75,51 @@ const navItems = [
   },
 ]
 
-export default function Sidebar({ user }: { user: User }) {
+const settingsItems = [
+  {
+    label: 'Profile',
+    href: '/settings/profile',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Business',
+    href: '/settings/business',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    ),
+  },
+]
+
+function BrandingBox({ branding }: { branding?: BusinessBranding | null }) {
+  const bizName = branding?.businessName || 'My Business'
+  const initials = bizName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'MB'
+
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden bg-white">
+        {branding?.logoUrl ? (
+          <Image src={branding.logoUrl} alt={bizName} width={28} height={28} className="object-contain" />
+        ) : (
+          <span className="text-slate-900 text-xs font-bold">{initials}</span>
+        )}
+      </div>
+      <div>
+        <p className="text-white text-sm font-semibold leading-none truncate max-w-[120px]">{bizName}</p>
+        <p className="text-slate-500 text-xs mt-0.5">Books</p>
+      </div>
+    </div>
+  )
+}
+
+export default function Sidebar({ user, branding }: { user: User; branding?: BusinessBranding | null }) {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -91,17 +141,9 @@ export default function Sidebar({ user }: { user: User }) {
     <>
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-56 bg-slate-900 flex-col h-full flex-shrink-0">
-        {/* Logo */}
+        {/* Logo / Branding */}
         <div className="px-5 py-5 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-white rounded-md flex items-center justify-center flex-shrink-0">
-              <span className="text-slate-900 text-xs font-bold">AP</span>
-            </div>
-            <div>
-              <p className="text-white text-sm font-semibold leading-none">AdPoint</p>
-              <p className="text-slate-500 text-xs mt-0.5">Books</p>
-            </div>
-          </div>
+          <BrandingBox branding={branding} />
         </div>
 
         {/* Nav */}
@@ -123,24 +165,41 @@ export default function Sidebar({ user }: { user: User }) {
               </Link>
             )
           })}
+
+          {/* Settings section */}
+          <div className="pt-3 pb-1">
+            <p className="px-3 text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Settings</p>
+          </div>
+          {settingsItems.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(item.href + '/')
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                  active
+                    ? 'bg-white/10 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {item.icon}
+                {item.label}
+              </Link>
+            )
+          })}
         </nav>
 
         {/* User */}
         <div className="px-3 py-4 border-t border-slate-800">
-          <Link
-            href="/settings/profile"
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors mb-1 ${
-              pathname.startsWith('/settings') ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
+          <div className="flex items-center gap-3 px-3 py-2 rounded-lg mb-1">
             <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
               <span className="text-white text-xs font-medium">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">{displayName}</p>
+              <p className="text-xs font-medium text-slate-300 truncate">{displayName}</p>
               <p className="text-slate-500 text-xs truncate">{user.email}</p>
             </div>
-          </Link>
+          </div>
           <button
             onClick={handleSignOut}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
@@ -156,15 +215,7 @@ export default function Sidebar({ user }: { user: User }) {
 
       {/* Mobile top header */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-slate-900 border-b border-slate-800">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-white rounded-md flex items-center justify-center flex-shrink-0">
-            <span className="text-slate-900 text-xs font-bold">AP</span>
-          </div>
-          <div>
-            <p className="text-white text-sm font-semibold leading-none">AdPoint</p>
-            <p className="text-slate-500 text-xs">Books</p>
-          </div>
-        </div>
+        <BrandingBox branding={branding} />
         <button
           onClick={() => setMobileOpen(true)}
           className="p-2 text-slate-400 hover:text-white transition-colors"
@@ -189,15 +240,7 @@ export default function Sidebar({ user }: { user: User }) {
           <div className="relative w-72 max-w-[85vw] bg-slate-900 flex flex-col h-full shadow-2xl">
             {/* Drawer header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 bg-white rounded-md flex items-center justify-center flex-shrink-0">
-                  <span className="text-slate-900 text-xs font-bold">AP</span>
-                </div>
-                <div>
-                  <p className="text-white text-sm font-semibold leading-none">AdPoint</p>
-                  <p className="text-slate-500 text-xs mt-0.5">Books</p>
-                </div>
-              </div>
+              <BrandingBox branding={branding} />
               <button
                 onClick={() => setMobileOpen(false)}
                 className="p-1.5 text-slate-400 hover:text-white transition-colors"
@@ -229,17 +272,34 @@ export default function Sidebar({ user }: { user: User }) {
                   </Link>
                 )
               })}
+
+              {/* Settings section */}
+              <div className="pt-3 pb-1">
+                <p className="px-3 text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Settings</p>
+              </div>
+              {settingsItems.map((item) => {
+                const active = pathname === item.href || pathname.startsWith(item.href + '/')
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={handleNavClick}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-colors ${
+                      active
+                        ? 'bg-white/10 text-white'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </Link>
+                )
+              })}
             </nav>
 
             {/* User + sign out */}
             <div className="px-3 py-4 border-t border-slate-800">
-              <Link
-                href="/settings/profile"
-                onClick={handleNavClick}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mb-1 ${
-                  pathname.startsWith('/settings') ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1">
                 <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
                   <span className="text-white text-xs font-medium">{initials}</span>
                 </div>
@@ -247,7 +307,7 @@ export default function Sidebar({ user }: { user: User }) {
                   <p className="text-xs font-medium text-white truncate">{displayName}</p>
                   <p className="text-slate-500 text-xs truncate">{user.email}</p>
                 </div>
-              </Link>
+              </div>
               <button
                 onClick={handleSignOut}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors"

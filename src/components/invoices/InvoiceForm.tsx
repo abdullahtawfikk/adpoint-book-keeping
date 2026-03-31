@@ -34,9 +34,13 @@ function addDays(days: number) {
 export default function InvoiceForm({
   clients,
   defaultClientId,
+  defaultTaxRate,
+  defaultPaymentTerms,
 }: {
   clients: Client[]
   defaultClientId?: string
+  defaultTaxRate?: number
+  defaultPaymentTerms?: number
 }) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
@@ -44,9 +48,9 @@ export default function InvoiceForm({
   const [clientId, setClientId] = useState(defaultClientId ?? '')
   const [title, setTitle] = useState('')
   const [issueDate, setIssueDate] = useState(today())
-  const [dueDate, setDueDate] = useState(addDays(14))
+  const [dueDate, setDueDate] = useState(addDays(defaultPaymentTerms ?? 14))
   const [items, setItems] = useState<LineItem[]>([newItem()])
-  const [tax, setTax] = useState('')
+  const [tax, setTax] = useState(defaultTaxRate ? String(defaultTaxRate) : '')
   const [discount, setDiscount] = useState('')
   const [notes, setNotes] = useState('')
 

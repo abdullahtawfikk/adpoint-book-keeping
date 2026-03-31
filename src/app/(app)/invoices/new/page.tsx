@@ -11,11 +11,17 @@ export default async function NewInvoicePage({
   const { clientId } = await searchParams
   const userId = await getCurrentUserId()
 
-  const clients = await prisma.client.findMany({
-    where: { userId },
-    select: { id: true, name: true, company: true },
-    orderBy: { name: 'asc' },
-  })
+  const [clients, businessSettings] = await Promise.all([
+    prisma.client.findMany({
+      where: { userId },
+      select: { id: true, name: true, company: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.businessSettings.findUnique({
+      where: { userId },
+      select: { defaultTaxRate: true, defaultPaymentTerms: true },
+    }),
+  ])
 
   return (
     <div className="p-6 md:p-8">
@@ -40,7 +46,12 @@ export default async function NewInvoicePage({
           </Link>
         </div>
       ) : (
-        <InvoiceForm clients={clients} defaultClientId={clientId} />
+        <InvoiceForm
+          clients={clients}
+          defaultClientId={clientId}
+          defaultTaxRate={businessSettings?.defaultTaxRate ?? undefined}
+          defaultPaymentTerms={businessSettings?.defaultPaymentTerms ?? undefined}
+        />
       )}
     </div>
   )

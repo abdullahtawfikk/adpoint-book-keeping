@@ -15,11 +15,35 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  clients     Client[]
-  invoices    Invoice[]
-  expenses    Expense[]
-  teamMembers TeamMember[]
-  teamPayments TeamPayment[]
+  clients          Client[]
+  invoices         Invoice[]
+  expenses         Expense[]
+  teamMembers      TeamMember[]
+  teamPayments     TeamPayment[]
+  businessSettings BusinessSettings?
+}
+
+model BusinessSettings {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  businessName        String?
+  logoUrl             String?
+  address             String?
+  phone               String?
+  email               String?
+  website             String?
+  taxNumber           String?
+  paymentInstructions String?
+  footerNote          String?
+  defaultTaxRate      Float    @default(0)
+  defaultPaymentTerms Int      @default(30)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("business_settings")
 }
 
 model Client {

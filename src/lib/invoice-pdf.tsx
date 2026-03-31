@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer'
 import type { DocumentProps } from '@react-pdf/renderer'
 import { formatEGP, formatDate } from '@/lib/format'
 import React from 'react'
@@ -16,6 +16,7 @@ const s = StyleSheet.create({
   // Header
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 36 },
   logoBox: { width: 38, height: 38, backgroundColor: '#0f172a', borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  logoImage: { width: 38, height: 38, borderRadius: 8, marginBottom: 8, objectFit: 'contain' },
   logoText: { color: '#ffffff', fontSize: 12, fontFamily: 'Helvetica-Bold' },
   companyName: { fontSize: 14, fontFamily: 'Helvetica-Bold', color: '#0f172a' },
   companyMeta: { fontSize: 8.5, color: '#64748b', marginTop: 2 },
@@ -73,11 +74,16 @@ const s = StyleSheet.create({
   notesText: { fontSize: 8.5, color: '#64748b', lineHeight: 1.6 },
 
   // Payment instructions
-  paymentBox: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 6, padding: 14, marginBottom: 24 },
+  paymentBox: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 6, padding: 14, marginBottom: 16 },
   paymentTitle: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#0f172a', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-  paymentRow: { flexDirection: 'row', marginBottom: 4 },
-  paymentKey: { width: 90, fontSize: 8.5, color: '#94a3b8' },
-  paymentVal: { flex: 1, fontSize: 8.5, color: '#0f172a', fontFamily: 'Helvetica-Bold' },
+  paymentText: { fontSize: 8.5, color: '#334155', lineHeight: 1.7 },
+
+  // Tax number
+  taxRow: { fontSize: 8.5, color: '#64748b', marginTop: 3 },
+
+  // Footer note
+  footerNoteBox: { marginBottom: 16 },
+  footerNoteText: { fontSize: 8, color: '#94a3b8', textAlign: 'center', lineHeight: 1.5 },
 
   // Footer
   footer: { borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -111,9 +117,39 @@ interface InvoiceData {
   }[]
 }
 
-export function buildInvoiceDocument(invoice: InvoiceData): ReactElement<DocumentProps> {
+export interface BusinessInfo {
+  businessName: string | null
+  logoUrl: string | null
+  address: string | null
+  phone: string | null
+  email: string | null
+  website: string | null
+  taxNumber: string | null
+  paymentInstructions: string | null
+  footerNote: string | null
+}
+
+export function buildInvoiceDocument(
+  invoice: InvoiceData,
+  business?: BusinessInfo | null
+): ReactElement<DocumentProps> {
   const taxAmount = (invoice.subtotal - invoice.discount) * (invoice.tax / 100)
   const isPaid = invoice.status === 'PAID'
+
+  const bizName = business?.businessName || 'My Business'
+  const bizMeta: string[] = []
+  if (business?.address) bizMeta.push(business.address)
+  if (business?.phone) bizMeta.push(business.phone)
+  if (business?.email) bizMeta.push(business.email)
+  if (business?.website) bizMeta.push(business.website)
+
+  const footerParts: string[] = []
+  if (bizName) footerParts.push(bizName)
+  if (business?.email) footerParts.push(business.email)
+  if (business?.phone) footerParts.push(business.phone)
+  if (business?.website) footerParts.push(business.website)
+
+  const initials = bizName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'B'
 
   return React.createElement(
     Document,
@@ -137,14 +173,19 @@ export function buildInvoiceDocument(invoice: InvoiceData): ReactElement<Documen
           React.createElement(
             View,
             null,
-            React.createElement(View, { style: s.logoBox },
-              React.createElement(Text, { style: s.logoText }, 'AP')
+            // Logo: image if available, otherwise initials box
+            business?.logoUrl
+              ? React.createElement(Image, { src: business.logoUrl, style: s.logoImage })
+              : React.createElement(View, { style: s.logoBox },
+                  React.createElement(Text, { style: s.logoText }, initials)
+                ),
+            React.createElement(Text, { style: s.companyName }, bizName),
+            ...bizMeta.map((line, i) =>
+              React.createElement(Text, { key: String(i), style: s.companyMeta }, line)
             ),
-            React.createElement(Text, { style: s.companyName }, 'AdPoint'),
-            React.createElement(Text, { style: s.companyMeta }, 'Cairo, Egypt'),
-            React.createElement(Text, { style: s.companyMeta }, 'advntgepoint@gmail.com'),
-            React.createElement(Text, { style: s.companyMeta }, '+20 115 222 3784'),
-            React.createElement(Text, { style: s.companyMeta }, 'adpoint.agency'),
+            business?.taxNumber
+              ? React.createElement(Text, { style: s.taxRow }, `Tax Reg: ${business.taxNumber}`)
+              : null,
           ),
           // Right: INVOICE label + number + dates
           React.createElement(
@@ -196,7 +237,6 @@ export function buildInvoiceDocument(invoice: InvoiceData): ReactElement<Documen
         React.createElement(
           View,
           { style: { marginBottom: 0 } },
-          // Table header
           React.createElement(
             View,
             { style: s.tableHeader },
@@ -205,7 +245,6 @@ export function buildInvoiceDocument(invoice: InvoiceData): ReactElement<Documen
             React.createElement(View, { style: s.colPrice }, React.createElement(Text, { style: s.thText }, 'Unit Price')),
             React.createElement(View, { style: s.colTotal }, React.createElement(Text, { style: s.thText }, 'Total')),
           ),
-          // Rows
           ...invoice.items.map((item, i) =>
             React.createElement(
               View,
@@ -259,38 +298,36 @@ export function buildInvoiceDocument(invoice: InvoiceData): ReactElement<Documen
           : null,
 
         // ── Payment Instructions ─────────────────────────────────────────────
-        React.createElement(
-          View,
-          { style: s.paymentBox },
-          React.createElement(Text, { style: s.paymentTitle }, 'Payment Instructions'),
-          React.createElement(View, { style: s.paymentRow },
-            React.createElement(Text, { style: s.paymentKey }, 'Bank Name'),
-            React.createElement(Text, { style: s.paymentVal }, 'Banque Misr'),
-          ),
-          React.createElement(View, { style: s.paymentRow },
-            React.createElement(Text, { style: s.paymentKey }, 'Account Name'),
-            React.createElement(Text, { style: s.paymentVal }, 'AdPoint for Marketing'),
-          ),
-          React.createElement(View, { style: s.paymentRow },
-            React.createElement(Text, { style: s.paymentKey }, 'Account Number'),
-            React.createElement(Text, { style: s.paymentVal }, '1234567890'),
-          ),
-          React.createElement(View, { style: s.paymentRow },
-            React.createElement(Text, { style: s.paymentKey }, 'Reference'),
-            React.createElement(Text, { style: s.paymentVal }, invoice.number),
-          ),
-          React.createElement(View, { style: { ...s.paymentRow, marginBottom: 0 } },
-            React.createElement(Text, { style: s.paymentKey }, 'Currency'),
-            React.createElement(Text, { style: s.paymentVal }, 'EGP — Egyptian Pound'),
-          ),
-        ),
+        business?.paymentInstructions
+          ? React.createElement(
+              View,
+              { style: s.paymentBox },
+              React.createElement(Text, { style: s.paymentTitle }, 'Payment Instructions'),
+              React.createElement(Text, { style: s.paymentText }, business.paymentInstructions),
+            )
+          : null,
+
+        // ── Footer Note ──────────────────────────────────────────────────────
+        business?.footerNote
+          ? React.createElement(
+              View,
+              { style: s.footerNoteBox },
+              React.createElement(Text, { style: s.footerNoteText }, business.footerNote),
+            )
+          : null,
 
         // ── Footer ───────────────────────────────────────────────────────────
         React.createElement(
           View,
           { style: s.footer },
-          React.createElement(Text, { style: s.footerLeft }, 'AdPoint  ·  advntgepoint@gmail.com  ·  +20 115 222 3784'),
-          React.createElement(Text, { style: s.footerRight }, 'adpoint.agency'),
+          React.createElement(
+            Text,
+            { style: s.footerLeft },
+            footerParts.join('  ·  ') || bizName,
+          ),
+          business?.website
+            ? React.createElement(Text, { style: s.footerRight }, business.website)
+            : null,
         ),
       )
     )
