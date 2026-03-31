@@ -76,7 +76,7 @@ export async function uploadBusinessLogoAction(formData: FormData) {
   if (!file || file.size === 0) return { error: 'No file provided' }
 
   const ext = file.name.split('.').pop()
-  const path = `business-logos/${userId}.${ext}`
+  const path = `logos/biz-${userId}.${ext}`
 
   const supabase = await createClient()
   const { error } = await supabase.storage

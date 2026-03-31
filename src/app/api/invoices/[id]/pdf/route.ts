@@ -13,12 +13,16 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
 
-  const [invoice, businessSettings] = await Promise.all([
-    prisma.invoice.findFirst({
-      where: { id, userId: user.id },
-      include: { client: true, items: true },
-    }),
-    prisma.businessSettings.findUnique({
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, userId: user.id },
+    include: { client: true, items: true },
+  })
+
+  if (!invoice) return new Response('Not found', { status: 404 })
+
+  let businessSettings = null
+  try {
+    businessSettings = await prisma.businessSettings.findUnique({
       where: { userId: user.id },
       select: {
         businessName: true,
@@ -31,10 +35,10 @@ export async function GET(
         paymentInstructions: true,
         footerNote: true,
       },
-    }),
-  ])
-
-  if (!invoice) return new Response('Not found', { status: 404 })
+    })
+  } catch {
+    // table may not exist yet — render PDF without business branding
+  }
 
   const doc = buildInvoiceDocument(invoice, businessSettings)
   const buffer = await renderToBuffer(doc)
