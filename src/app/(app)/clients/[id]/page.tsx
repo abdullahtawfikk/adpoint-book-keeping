@@ -27,9 +27,8 @@ export default async function ClientDetailPage({
   if (!client) notFound()
 
   const totalInvoiced = client.invoices.reduce((sum, inv) => sum + inv.total, 0)
-  const totalPaid = client.invoices
-    .filter((inv) => inv.status === 'PAID')
-    .reduce((sum, inv) => sum + inv.total, 0)
+  const paidInvoices = client.invoices.filter((inv) => inv.status === 'PAID')
+  const totalPaid = paidInvoices.reduce((sum, inv) => sum + inv.total, 0)
   const outstanding = totalInvoiced - totalPaid
 
   return (
@@ -77,7 +76,7 @@ export default async function ClientDetailPage({
               <p className="mt-3 text-sm text-slate-500 bg-slate-50 rounded-lg px-3 py-2">{client.notes}</p>
             )}
           </div>
-          <ClientDetailActions client={client} />
+          <ClientDetailActions client={client} hasPaidInvoices={paidInvoices.length > 0} />
         </div>
       </div>
 
