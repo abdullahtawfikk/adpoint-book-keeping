@@ -1,6 +1,6 @@
 export default function ExpensesLoading() {
   return (
-    <div className="p-5 md:p-8 pb-24 md:pb-8 animate-pulse">
+    <div className="p-5 md:p-8 animate-pulse">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Main list */}
         <div className="lg:col-span-2">

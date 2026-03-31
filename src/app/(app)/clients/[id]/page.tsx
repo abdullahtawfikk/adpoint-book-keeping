@@ -32,7 +32,7 @@ export default async function ClientDetailPage({
   const outstanding = totalInvoiced - totalPaid
 
   return (
-    <div className="p-6 md:p-8 pb-24 md:pb-8 max-w-4xl">
+    <div className="p-6 md:p-8 max-w-4xl">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-slate-400 mb-6">
         <Link href="/clients" className="hover:text-slate-700">Clients</Link>

@@ -1,6 +1,6 @@
 export default function ProfileSettingsLoading() {
   return (
-    <div className="p-5 md:p-8 pb-24 md:pb-8 max-w-2xl animate-pulse">
+    <div className="p-5 md:p-8 max-w-2xl animate-pulse">
       <div className="mb-8">
         <div className="h-7 w-48 bg-slate-200 rounded-lg" />
         <div className="h-4 w-64 bg-slate-100 rounded mt-2" />

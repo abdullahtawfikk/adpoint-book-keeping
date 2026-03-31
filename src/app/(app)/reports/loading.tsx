@@ -1,6 +1,6 @@
 export default function ReportsLoading() {
   return (
-    <div className="p-5 md:p-8 pb-24 md:pb-8 animate-pulse">
+    <div className="p-5 md:p-8 animate-pulse">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

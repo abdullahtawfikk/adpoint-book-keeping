@@ -36,7 +36,7 @@ export default async function TeamPage() {
   }))
 
   return (
-    <div className="p-5 md:p-8 pb-24 md:pb-8">
+    <div className="p-5 md:p-8">
       <TeamPageClient
         members={rows}
         monthlyPayroll={monthlyPayroll._sum.amount ?? 0}
