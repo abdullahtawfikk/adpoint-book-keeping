@@ -17,7 +17,7 @@ export default async function ProfileSettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
 
   return (
-    <div className="p-5 md:p-8 pb-24 md:pb-8 max-w-2xl">
+    <div className="p-5 md:p-8 max-w-2xl">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-slate-900">Profile & Settings</h1>
         <p className="text-sm text-slate-500 mt-1">Manage your account and business details</p>

@@ -178,7 +178,7 @@ export default async function DashboardPage() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div className="p-5 md:p-8 pb-24 md:pb-8">
+    <div className="p-5 md:p-8">
       {/* Header */}
       <div className="mb-7">
         <h1 className="text-2xl font-semibold text-slate-900">{greeting}, {displayName}</h1>

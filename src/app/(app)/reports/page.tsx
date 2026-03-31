@@ -79,7 +79,7 @@ export default async function ReportsPage({
   const topClients = Object.values(clientMap).sort((a, b) => b.total - a.total).slice(0, 8)
 
   return (
-    <div className="p-5 md:p-8 pb-24 md:pb-8">
+    <div className="p-5 md:p-8">
       <ReportsClient
         data={{ revenue, expenses: totalExpenses, expensesByCategory, revenueByMonth, topClients, dateFrom, dateTo }}
       />

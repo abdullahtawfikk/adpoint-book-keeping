@@ -32,7 +32,7 @@ export default async function ExpensesPage() {
   }))
 
   return (
-    <div className="p-5 md:p-8 pb-24 md:pb-8">
+    <div className="p-5 md:p-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
         {/* Main list — takes 2/3 */}
         <div className="lg:col-span-2">

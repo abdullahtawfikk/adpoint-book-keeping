@@ -32,7 +32,7 @@ export default async function ClientsPage() {
   })
 
   return (
-    <div className="p-6 md:p-8 pb-24 md:pb-8">
+    <div className="p-6 md:p-8">
       <ClientsPageClient clients={rows} />
     </div>
   )

@@ -18,7 +18,7 @@ export default async function NewInvoicePage({
   })
 
   return (
-    <div className="p-6 md:p-8 pb-24 md:pb-8">
+    <div className="p-6 md:p-8">
       <div className="flex items-center gap-2 text-sm text-slate-400 mb-6">
         <Link href="/invoices" className="hover:text-slate-700">Invoices</Link>
         <span>/</span>

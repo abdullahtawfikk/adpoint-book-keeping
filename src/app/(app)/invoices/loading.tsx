@@ -1,6 +1,6 @@
 export default function InvoicesLoading() {
   return (
-    <div className="p-6 md:p-8 pb-24 md:pb-8 animate-pulse">
+    <div className="p-6 md:p-8 animate-pulse">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

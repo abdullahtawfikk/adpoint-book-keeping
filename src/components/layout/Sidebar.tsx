@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -71,6 +72,7 @@ const navItems = [
 export default function Sidebar({ user }: { user: User }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const displayName = user.user_metadata?.name || user.email?.split('@')[0] || 'User'
   const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -79,6 +81,10 @@ export default function Sidebar({ user }: { user: User }) {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  function handleNavClick() {
+    setMobileOpen(false)
   }
 
   return (
@@ -148,24 +154,114 @@ export default function Sidebar({ user }: { user: User }) {
         </div>
       </aside>
 
-      {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 z-50 flex items-center justify-around px-2 py-2">
-        {navItems.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + '/')
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
-                active ? 'text-white' : 'text-slate-400'
-              }`}
-            >
-              {item.icon}
-              <span className="text-xs">{item.label.split(' ')[0]}</span>
-            </Link>
-          )
-        })}
-      </nav>
+      {/* Mobile top header */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-slate-900 border-b border-slate-800">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 bg-white rounded-md flex items-center justify-center flex-shrink-0">
+            <span className="text-slate-900 text-xs font-bold">AP</span>
+          </div>
+          <div>
+            <p className="text-white text-sm font-semibold leading-none">AdPoint</p>
+            <p className="text-slate-500 text-xs">Books</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="p-2 text-slate-400 hover:text-white transition-colors"
+          aria-label="Open menu"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </header>
+
+      {/* Mobile drawer overlay */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobileOpen(false)}
+          />
+
+          {/* Drawer */}
+          <div className="relative w-72 max-w-[85vw] bg-slate-900 flex flex-col h-full shadow-2xl">
+            {/* Drawer header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 bg-white rounded-md flex items-center justify-center flex-shrink-0">
+                  <span className="text-slate-900 text-xs font-bold">AP</span>
+                </div>
+                <div>
+                  <p className="text-white text-sm font-semibold leading-none">AdPoint</p>
+                  <p className="text-slate-500 text-xs mt-0.5">Books</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-white transition-colors"
+                aria-label="Close menu"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Nav items */}
+            <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+              {navItems.map((item) => {
+                const active = pathname === item.href || pathname.startsWith(item.href + '/')
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={handleNavClick}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-colors ${
+                      active
+                        ? 'bg-white/10 text-white'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </nav>
+
+            {/* User + sign out */}
+            <div className="px-3 py-4 border-t border-slate-800">
+              <Link
+                href="/settings/profile"
+                onClick={handleNavClick}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mb-1 ${
+                  pathname.startsWith('/settings') ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-xs font-medium">{initials}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-white truncate">{displayName}</p>
+                  <p className="text-slate-500 text-xs truncate">{user.email}</p>
+                </div>
+              </Link>
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

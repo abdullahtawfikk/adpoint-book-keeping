@@ -53,3 +53,12 @@ export async function updateClientAction(
   revalidatePath('/clients')
   revalidatePath(`/clients/${clientId}`)
 }
+
+export async function deleteClientAction(clientId: string) {
+  const userId = await getCurrentUserId()
+  await prisma.client.delete({
+    where: { id: clientId, userId },
+  })
+  revalidatePath('/clients')
+  return { success: true }
+}
