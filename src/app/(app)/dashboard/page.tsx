@@ -155,6 +155,11 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { name: true },
+  })
+
   let data
   try {
     data = await getDashboardData(user.id)
@@ -172,7 +177,7 @@ export default async function DashboardPage() {
 
   const netProfit = data.monthRevenue - data.monthExpenses
   const currentBalance = data.allTimeRevenue - data.allTimeExpenses
-  const displayName = user.user_metadata?.name?.split(' ')[0] || 'there'
+  const displayName = dbUser?.name?.split(' ')[0] || user.user_metadata?.name?.split(' ')[0] || 'there'
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
