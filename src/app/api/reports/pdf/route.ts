@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const toDate = new Date(dateTo)
   toDate.setHours(23, 59, 59, 999)
 
-  const [invoices, expenses] = await Promise.all([
+  const [invoices, expenses, businessSettings] = await Promise.all([
     prisma.invoice.findMany({
       where: { userId: user.id, status: 'PAID', issueDate: { gte: fromDate, lte: toDate } },
       include: { client: { select: { name: true } } },
@@ -24,6 +24,20 @@ export async function GET(request: Request) {
     prisma.expense.findMany({
       where: { userId: user.id, date: { gte: fromDate, lte: toDate } },
     }),
+    prisma.businessSettings.findUnique({
+      where: { userId: user.id },
+      select: {
+        businessName: true,
+        logoUrl: true,
+        address: true,
+        phone: true,
+        email: true,
+        website: true,
+        taxNumber: true,
+        paymentInstructions: true,
+        footerNote: true,
+      },
+    }).catch(() => null),
   ])
 
   const revenue = invoices.reduce((sum, inv) => sum + inv.total, 0)
@@ -37,13 +51,18 @@ export async function GET(request: Request) {
     .map(([category, total]) => ({ category, total }))
     .sort((a, b) => b.total - a.total)
 
-  const doc = buildReportDocument({ revenue, expenses: totalExpenses, expensesByCategory, dateFrom, dateTo })
+  const doc = buildReportDocument(
+    { revenue, expenses: totalExpenses, expensesByCategory, dateFrom, dateTo },
+    businessSettings
+  )
   const buffer = await renderToBuffer(doc)
+
+  const bizName = businessSettings?.businessName || 'Report'
 
   return new Response(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="AdPoint-Report-${dateFrom}-${dateTo}.pdf"`,
+      'Content-Disposition': `attachment; filename="${bizName}-${dateFrom}-${dateTo}.pdf"`,
     },
   })
 }
