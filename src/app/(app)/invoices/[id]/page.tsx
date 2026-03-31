@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { getCurrentUserId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { formatEGP, formatDate } from '@/lib/format'
@@ -15,16 +16,25 @@ export default async function InvoiceDetailPage({
   const { id } = await params
   const userId = await getCurrentUserId()
 
-  const invoice = await prisma.invoice.findFirst({
-    where: { id, userId },
-    include: {
-      client: true,
-      items: true,
-      payments: { orderBy: { date: 'desc' } },
-    },
-  })
+  const [invoice, businessSettings] = await Promise.all([
+    prisma.invoice.findFirst({
+      where: { id, userId },
+      include: {
+        client: true,
+        items: true,
+        payments: { orderBy: { date: 'desc' } },
+      },
+    }),
+    prisma.businessSettings.findUnique({
+      where: { userId },
+      select: { businessName: true, logoUrl: true, address: true, phone: true, email: true },
+    }).catch(() => null),
+  ])
 
   if (!invoice) notFound()
+
+  const bizName = businessSettings?.businessName || 'My Business'
+  const initials = bizName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || 'B'
 
   const amountPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
   const remaining = invoice.total - amountPaid
@@ -78,12 +88,17 @@ export default async function InvoiceDetailPage({
         {/* Header */}
         <div className="flex items-start justify-between gap-6 mb-8 flex-wrap">
           <div>
-            <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center mb-4">
-              <span className="text-white text-sm font-bold">AP</span>
-            </div>
-            <p className="font-bold text-slate-900 text-lg">AdPoint</p>
-            <p className="text-slate-500 text-sm">Cairo, Egypt</p>
-            <p className="text-slate-500 text-sm">advntgepoint@gmail.com</p>
+            {businessSettings?.logoUrl ? (
+              <Image src={businessSettings.logoUrl} alt={bizName} width={40} height={40} className="rounded-xl mb-4 object-contain" />
+            ) : (
+              <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center mb-4">
+                <span className="text-white text-sm font-bold">{initials}</span>
+              </div>
+            )}
+            <p className="font-bold text-slate-900 text-lg">{bizName}</p>
+            {businessSettings?.address && <p className="text-slate-500 text-sm">{businessSettings.address}</p>}
+            {businessSettings?.email && <p className="text-slate-500 text-sm">{businessSettings.email}</p>}
+            {businessSettings?.phone && <p className="text-slate-500 text-sm">{businessSettings.phone}</p>}
           </div>
           <div className="text-right">
             <p className="text-3xl font-bold text-slate-900">{invoice.number}</p>
