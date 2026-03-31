@@ -3,8 +3,8 @@ import { Suspense } from 'react'
 import { getCurrentUserId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { formatEGP, formatDate } from '@/lib/format'
-import StatusBadge from '@/components/ui/StatusBadge'
 import InvoiceFilters from '@/components/invoices/InvoiceFilters'
+import InvoiceRow from '@/components/invoices/InvoiceRow'
 import { InvoiceStatus } from '@prisma/client'
 export default async function InvoicesPage({
   searchParams,
@@ -74,22 +74,17 @@ export default async function InvoicesPage({
                     <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Status</th>
                     <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Amount</th>
                     <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Due Date</th>
+                    <th className="px-6 py-3 w-36" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {invoices.map((inv) => (
-                    <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <Link href={`/invoices/${inv.id}`} className="block">
-                          <p className="font-medium text-slate-900">{inv.number}</p>
-                          {inv.title && <p className="text-xs text-slate-400 mt-0.5">{inv.title}</p>}
-                        </Link>
-                      </td>
-                      <td className="px-6 py-4 text-slate-600">{inv.client.name}</td>
-                      <td className="px-6 py-4"><StatusBadge status={inv.status} /></td>
-                      <td className="px-6 py-4 text-right font-medium text-slate-900">{formatEGP(inv.total)}</td>
-                      <td className="px-6 py-4 text-right text-slate-400 text-xs">{formatDate(inv.dueDate)}</td>
-                    </tr>
+                    <InvoiceRow
+                      key={inv.id}
+                      invoice={inv}
+                      formattedTotal={formatEGP(inv.total)}
+                      formattedDue={formatDate(inv.dueDate)}
+                    />
                   ))}
                 </tbody>
               </table>

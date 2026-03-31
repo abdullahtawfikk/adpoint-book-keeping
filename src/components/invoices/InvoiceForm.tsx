@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
-import { createInvoiceAction } from '@/lib/actions/invoices'
+import { useState, useTransition } from 'react'
+import { createInvoiceAction, updateInvoiceAction } from '@/lib/actions/invoices'
 import { formatEGP } from '@/lib/format'
 
 interface Client {
@@ -31,28 +31,51 @@ function addDays(days: number) {
   return d.toISOString().split('T')[0]
 }
 
+interface InitialData {
+  invoiceId: string
+  clientId: string
+  title: string | null
+  issueDate: string
+  dueDate: string
+  items: { description: string; quantity: number; unitPrice: number }[]
+  tax: number
+  discount: number
+  notes: string | null
+  status: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED'
+}
+
 export default function InvoiceForm({
   clients,
   defaultClientId,
   defaultTaxRate,
   defaultPaymentTerms,
+  initialData,
 }: {
   clients: Client[]
   defaultClientId?: string
   defaultTaxRate?: number
   defaultPaymentTerms?: number
+  initialData?: InitialData
 }) {
+  const isEdit = !!initialData
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
 
-  const [clientId, setClientId] = useState(defaultClientId ?? '')
-  const [title, setTitle] = useState('')
-  const [issueDate, setIssueDate] = useState(today())
-  const [dueDate, setDueDate] = useState(addDays(defaultPaymentTerms ?? 14))
-  const [items, setItems] = useState<LineItem[]>([newItem()])
-  const [tax, setTax] = useState(defaultTaxRate ? String(defaultTaxRate) : '')
-  const [discount, setDiscount] = useState('')
-  const [notes, setNotes] = useState('')
+  const [clientId, setClientId] = useState(initialData?.clientId ?? defaultClientId ?? '')
+  const [title, setTitle] = useState(initialData?.title ?? '')
+  const [issueDate, setIssueDate] = useState(initialData?.issueDate ?? today())
+  const [dueDate, setDueDate] = useState(initialData?.dueDate ?? addDays(defaultPaymentTerms ?? 14))
+  const [items, setItems] = useState<LineItem[]>(
+    initialData?.items.map((i) => ({
+      id: crypto.randomUUID(),
+      description: i.description,
+      quantity: String(i.quantity),
+      unitPrice: String(i.unitPrice),
+    })) ?? [newItem()]
+  )
+  const [tax, setTax] = useState(initialData ? String(initialData.tax) : defaultTaxRate ? String(defaultTaxRate) : '')
+  const [discount, setDiscount] = useState(initialData ? String(initialData.discount) : '')
+  const [notes, setNotes] = useState(initialData?.notes ?? '')
 
   // Calculated totals
   const subtotal = items.reduce((sum, item) => {
@@ -85,23 +108,27 @@ export default function InvoiceForm({
     if (hasEmptyItem) { setError('All line items must have a description and price'); return }
     setError('')
 
+    const lineItems = items.map((item) => {
+      const q = parseFloat(item.quantity) || 1
+      const p = parseFloat(item.unitPrice) || 0
+      return { description: item.description, quantity: q, unitPrice: p, total: q * p }
+    })
+
     startTransition(async () => {
       try {
-        await createInvoiceAction({
-          clientId,
-          title: title || undefined,
-          issueDate,
-          dueDate,
-          items: items.map((item) => {
-            const q = parseFloat(item.quantity) || 1
-            const p = parseFloat(item.unitPrice) || 0
-            return { description: item.description, quantity: q, unitPrice: p, total: q * p }
-          }),
-          tax: taxRate,
-          discount: discountAmt,
-          notes: notes || undefined,
-          status,
-        })
+        if (isEdit && initialData) {
+          await updateInvoiceAction(initialData.invoiceId, {
+            clientId, title: title || undefined, issueDate, dueDate,
+            items: lineItems, tax: taxRate, discount: discountAmt,
+            notes: notes || undefined, status,
+          })
+        } else {
+          await createInvoiceAction({
+            clientId, title: title || undefined, issueDate, dueDate,
+            items: lineItems, tax: taxRate, discount: discountAmt,
+            notes: notes || undefined, status,
+          })
+        }
       } catch {
         setError('Something went wrong. Please try again.')
       }
@@ -317,14 +344,14 @@ export default function InvoiceForm({
           disabled={isPending}
           className="px-5 py-2.5 border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors"
         >
-          Save as Draft
+          {isEdit ? 'Save as Draft' : 'Save as Draft'}
         </button>
         <button
           onClick={() => handleSubmit('SENT')}
           disabled={isPending}
           className="px-5 py-2.5 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors"
         >
-          {isPending ? 'Creating...' : 'Create & Mark as Sent'}
+          {isPending ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save & Mark as Sent' : 'Create & Mark as Sent')}
         </button>
       </div>
     </div>

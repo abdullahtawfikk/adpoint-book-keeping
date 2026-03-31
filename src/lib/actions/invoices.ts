@@ -78,6 +78,65 @@ export async function updateInvoiceStatusAction(
   revalidatePath('/dashboard')
 }
 
+export async function updateInvoiceAction(invoiceId: string, data: {
+  clientId: string
+  title?: string
+  issueDate: string
+  dueDate: string
+  items: { description: string; quantity: number; unitPrice: number; total: number }[]
+  tax: number
+  discount: number
+  notes?: string
+  status: 'DRAFT' | 'SENT'
+}) {
+  const userId = await getCurrentUserId()
+  const invoice = await prisma.invoice.findFirst({ where: { id: invoiceId, userId } })
+  if (!invoice) throw new Error('Invoice not found')
+
+  const subtotal = data.items.reduce((sum, item) => sum + item.total, 0)
+  const taxAmount = (subtotal - data.discount) * (data.tax / 100)
+  const total = subtotal - data.discount + taxAmount
+
+  await prisma.invoice.update({
+    where: { id: invoiceId },
+    data: {
+      clientId: data.clientId,
+      title: data.title || null,
+      status: data.status as InvoiceStatus,
+      issueDate: new Date(data.issueDate),
+      dueDate: new Date(data.dueDate),
+      subtotal,
+      discount: data.discount,
+      tax: data.tax,
+      total,
+      notes: data.notes || null,
+      items: {
+        deleteMany: {},
+        create: data.items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          total: item.total,
+        })),
+      },
+    },
+  })
+
+  revalidatePath(`/invoices/${invoiceId}`)
+  revalidatePath('/invoices')
+  revalidatePath('/dashboard')
+  redirect(`/invoices/${invoiceId}`)
+}
+
+export async function deleteInvoiceAction(invoiceId: string) {
+  const userId = await getCurrentUserId()
+  const invoice = await prisma.invoice.findFirst({ where: { id: invoiceId, userId } })
+  if (!invoice) throw new Error('Invoice not found')
+  await prisma.invoice.delete({ where: { id: invoiceId } })
+  revalidatePath('/invoices')
+  revalidatePath('/dashboard')
+}
+
 export async function recordPaymentAction(
   invoiceId: string,
   data: {
