@@ -47,21 +47,22 @@ model BusinessSettings {
 }
 
 model Client {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name      String
-  email     String?
-  phone     String?
-  company   String?
-  address   String?
-  notes     String?
+  name        String
+  email       String?
+  phone       String?
+  company     String?
+  address     String?
+  notes       String?
+  portalToken String?  @unique @map("portal_token")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  invoices  Invoice[]
+  invoices    Invoice[]
 }
 
 model Invoice {

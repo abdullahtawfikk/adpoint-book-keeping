@@ -4,7 +4,9 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import SlideOver from '@/components/ui/SlideOver'
 import ClientForm from '@/components/clients/ClientForm'
-import { deleteClientAction } from '@/lib/actions/clients'
+import { deleteClientAction, ensurePortalTokenAction } from '@/lib/actions/clients'
+
+const PORTAL_BASE = 'https://adpoint-books.vercel.app'
 
 interface Client {
   id: string
@@ -19,15 +21,33 @@ interface Client {
 export default function ClientDetailActions({
   client,
   hasPaidInvoices,
+  portalToken,
 }: {
   client: Client
   hasPaidInvoices: boolean
+  portalToken: string | null
 }) {
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [copyPending, setCopyPending] = useState(false)
   const router = useRouter()
+
+  async function handleCopyPortalLink() {
+    setCopyPending(true)
+    try {
+      let token = portalToken
+      if (!token) {
+        token = await ensurePortalTokenAction(client.id)
+      }
+      await navigator.clipboard.writeText(`${PORTAL_BASE}/portal/${token}`)
+      setToast('Portal link copied!')
+      setTimeout(() => setToast(null), 2500)
+    } finally {
+      setCopyPending(false)
+    }
+  }
 
   function handleDelete() {
     startTransition(async () => {
@@ -50,7 +70,19 @@ export default function ClientDetailActions({
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Copy Portal Link */}
+        <button
+          onClick={handleCopyPortalLink}
+          disabled={copyPending}
+          className="inline-flex items-center gap-2 border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          {copyPending ? 'Copying...' : 'Copy Portal Link'}
+        </button>
+
         {/* Edit */}
         <button
           onClick={() => setEditOpen(true)}

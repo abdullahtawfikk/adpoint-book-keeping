@@ -22,9 +22,21 @@ export async function createClientAction(data: {
       company: data.company || null,
       address: data.address || null,
       notes: data.notes || null,
+      portalToken: crypto.randomUUID(),
     },
   })
   revalidatePath('/clients')
+}
+
+export async function ensurePortalTokenAction(clientId: string): Promise<string> {
+  const userId = await getCurrentUserId()
+  const client = await prisma.client.findFirst({ where: { id: clientId, userId } })
+  if (!client) throw new Error('Client not found')
+  if (client.portalToken) return client.portalToken
+  const token = crypto.randomUUID()
+  await prisma.client.update({ where: { id: clientId }, data: { portalToken: token } })
+  revalidatePath(`/clients/${clientId}`)
+  return token
 }
 
 export async function updateClientAction(

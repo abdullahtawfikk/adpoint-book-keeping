@@ -76,7 +76,7 @@ export default async function ClientDetailPage({
               <p className="mt-3 text-sm text-slate-500 bg-slate-50 rounded-lg px-3 py-2">{client.notes}</p>
             )}
           </div>
-          <ClientDetailActions client={client} hasPaidInvoices={paidInvoices.length > 0} />
+          <ClientDetailActions client={client} hasPaidInvoices={paidInvoices.length > 0} portalToken={client.portalToken ?? null} />
         </div>
       </div>
 
