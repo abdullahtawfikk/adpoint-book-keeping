@@ -45,6 +45,7 @@ export default async function PortalPage({
     total: inv.total,
     dueDate: inv.dueDate.toISOString(),
     displayStatus: getInvoiceDisplayStatus(inv) as Invoice['displayStatus'],
+    clientApproved: inv.clientApproved,
     phases: inv.phases.map((p) => ({
       id: p.id,
       name: p.name,

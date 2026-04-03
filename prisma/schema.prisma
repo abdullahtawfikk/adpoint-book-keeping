@@ -48,22 +48,25 @@ model BusinessSettings {
 }
 
 model Client {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name        String
-  email       String?
-  phone       String?
-  company     String?
-  address     String?
-  notes       String?
-  portalToken String?  @unique @map("portal_token")
+  name           String
+  email          String?
+  phone          String?
+  company        String?
+  address        String?
+  notes          String?
+  portalToken    String?   @unique @map("portal_token")
+  portalLastSeen DateTime? @map("portal_last_seen")
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  invoices    Invoice[]
+  invoices       Invoice[]
+  portalMessages PortalMessage[]
+  paymentClaims  PortalPaymentClaim[]
 }
 
 model Invoice {
@@ -73,7 +76,7 @@ model Invoice {
   clientId         String
   client           Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
-  number           String           // e.g. INV-0001
+  number           String
   title            String?
   status           InvoiceStatus    @default(DRAFT)
   paymentStructure PaymentStructure @default(FULL)
@@ -83,8 +86,11 @@ model Invoice {
 
   subtotal         Float            @default(0)
   discount         Float            @default(0)
-  tax              Float            @default(0) // percentage, e.g. 14 for 14%
+  tax              Float            @default(0)
   total            Float            @default(0)
+
+  clientApproved   Boolean          @default(false) @map("client_approved")
+  clientApprovedAt DateTime?        @map("client_approved_at")
 
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
@@ -92,6 +98,8 @@ model Invoice {
   items            InvoiceItem[]
   payments         Payment[]
   phases           InvoicePhase[]
+  portalMessages   PortalMessage[]
+  paymentClaims    PortalPaymentClaim[]
 }
 
 model InvoicePhase {
@@ -109,6 +117,8 @@ model InvoicePhase {
 
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+
+  paymentClaims PortalPaymentClaim[]
 
   @@map("invoice_phases")
 }
@@ -188,6 +198,42 @@ model TeamPayment {
   updatedAt   DateTime @updatedAt
 }
 
+model PortalPaymentClaim {
+  id         String      @id @default(uuid())
+  clientId   String
+  client     Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoiceId  String
+  invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  phaseId    String?
+  phase      InvoicePhase? @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+
+  amount     Float
+  receiptUrl String?
+  note       String?
+  status     ClaimStatus @default(PENDING)
+
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@map("portal_payment_claims")
+}
+
+model PortalMessage {
+  id         String   @id @default(uuid())
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoiceId  String?
+  invoice    Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  content    String
+  fromClient Boolean  @default(true)
+  read       Boolean  @default(false)
+
+  createdAt  DateTime @default(now())
+
+  @@map("portal_messages")
+}
+
 enum InvoiceStatus {
   DRAFT
   SENT
@@ -224,6 +270,12 @@ enum PaymentStatus {
   PAID
   PENDING
   CANCELLED
+}
+
+enum ClaimStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
 }
 
 model Notification {

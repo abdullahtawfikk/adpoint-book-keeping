@@ -7,7 +7,11 @@ export default async function ClientsPage() {
 
   const clients = await prisma.client.findMany({
     where: { userId },
-    include: { invoices: { select: { total: true, status: true, issueDate: true } } },
+    include: {
+      invoices: { select: { total: true, status: true, issueDate: true } },
+      paymentClaims: { where: { status: 'PENDING' }, select: { id: true } },
+      portalMessages: { where: { fromClient: true, read: false }, select: { id: true } },
+    },
     orderBy: { createdAt: 'desc' },
   })
 
@@ -28,6 +32,9 @@ export default async function ClientsPage() {
       totalInvoiced,
       outstanding,
       lastInvoiceDate,
+      portalLastSeen: c.portalLastSeen,
+      pendingClaims: c.paymentClaims.length,
+      unreadMessages: c.portalMessages.length,
     }
   })
 

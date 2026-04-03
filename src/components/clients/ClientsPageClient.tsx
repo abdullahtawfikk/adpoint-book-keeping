@@ -15,6 +15,9 @@ interface ClientRow {
   totalInvoiced: number
   outstanding: number
   lastInvoiceDate: Date | null
+  portalLastSeen: Date | null
+  pendingClaims: number
+  unreadMessages: number
 }
 
 export default function ClientsPageClient({ clients }: { clients: ClientRow[] }) {
@@ -92,6 +95,7 @@ export default function ClientsPageClient({ clients }: { clients: ClientRow[] })
                     <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Total Invoiced</th>
                     <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Outstanding</th>
                     <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Last Invoice</th>
+                    <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Portal</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -112,6 +116,9 @@ export default function ClientsPageClient({ clients }: { clients: ClientRow[] })
                       <td className="px-6 py-4 text-right text-slate-400 text-xs">
                         {client.lastInvoiceDate ? formatDate(client.lastInvoiceDate) : '—'}
                       </td>
+                      <td className="px-6 py-4 text-right">
+                        <PortalActivity client={client} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -127,8 +134,14 @@ export default function ClientsPageClient({ clients }: { clients: ClientRow[] })
                   className="flex items-center justify-between px-4 py-4 hover:bg-slate-50"
                 >
                   <div>
-                    <p className="font-medium text-slate-900 text-sm">{client.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-slate-900 text-sm">{client.name}</p>
+                      {(client.pendingClaims > 0 || client.unreadMessages > 0) && (
+                        <span className="h-2 w-2 rounded-full bg-blue-500" />
+                      )}
+                    </div>
                     {client.company && <p className="text-xs text-slate-400 mt-0.5">{client.company}</p>}
+                    <PortalActivity client={client} />
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-slate-700">{formatEGP(client.totalInvoiced)}</p>
@@ -149,4 +162,38 @@ export default function ClientsPageClient({ clients }: { clients: ClientRow[] })
       </SlideOver>
     </>
   )
+}
+
+function PortalActivity({ client }: { client: ClientRow }) {
+  const { pendingClaims, unreadMessages, portalLastSeen } = client
+
+  if (!pendingClaims && !unreadMessages && !portalLastSeen) return <span className="text-xs text-slate-300">—</span>
+
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-1.5 mt-1">
+      {pendingClaims > 0 && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+          {pendingClaims} claim{pendingClaims > 1 ? 's' : ''}
+        </span>
+      )}
+      {unreadMessages > 0 && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+          {unreadMessages} msg{unreadMessages > 1 ? 's' : ''}
+        </span>
+      )}
+      {portalLastSeen && (
+        <span className="text-[10px] text-slate-400" title={new Date(portalLastSeen).toLocaleString()}>
+          Seen {timeAgo(new Date(portalLastSeen))}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function timeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
+  if (seconds < 60)  return 'just now'
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
+  return `${Math.floor(seconds / 86400)}d ago`
 }
