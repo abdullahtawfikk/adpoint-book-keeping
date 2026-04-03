@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { buildStatementDocument } from '@/lib/statement-pdf'
-import React from 'react'
 
 export async function GET(
   _req: Request,
@@ -32,11 +31,11 @@ export async function GET(
   }).catch(() => null)
 
   const doc = buildStatementDocument(client, settings ?? null)
-  const buffer = await renderToBuffer(React.createElement(() => doc) as React.ReactElement)
+  const buffer = await renderToBuffer(doc)
 
   const filename = `statement-${client.name.replace(/\s+/g, '-').toLowerCase()}.pdf`
 
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${filename}"`,

@@ -49,8 +49,7 @@ export async function confirmClaimAction(claimId: string, action: 'CONFIRMED' | 
     if (claim.phaseId) {
       await markPhasePaidAction(claim.phaseId)
     } else {
-      await recordPaymentAction({
-        invoiceId: claim.invoiceId,
+      await recordPaymentAction(claim.invoiceId, {
         amount:    claim.amount,
         date:      new Date().toISOString(),
         method:    'InstaPay',
