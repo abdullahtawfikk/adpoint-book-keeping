@@ -13,14 +13,22 @@ export default async function AppLayout({
 
   if (!user) redirect('/login')
 
-  const branding = await prisma.businessSettings.findUnique({
-    where: { userId: user.id },
-    select: { businessName: true, logoUrl: true },
-  })
+  const [branding, notifications] = await Promise.all([
+    prisma.businessSettings.findUnique({
+      where: { userId: user.id },
+      select: { businessName: true, logoUrl: true },
+    }),
+    prisma.notification.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: { id: true, message: true, invoiceId: true, read: true, createdAt: true },
+    }),
+  ])
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <Sidebar user={user} branding={branding} />
+      <Sidebar user={user} branding={branding} notifications={notifications} />
       <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
         {children}
       </main>

@@ -6,10 +6,19 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
+import NotificationBell from './NotificationBell'
 
 interface BusinessBranding {
   businessName: string | null
   logoUrl: string | null
+}
+
+interface NotificationItem {
+  id: string
+  message: string
+  invoiceId: string | null
+  read: boolean
+  createdAt: Date
 }
 
 const navItems = [
@@ -119,7 +128,7 @@ function BrandingBox({ branding }: { branding?: BusinessBranding | null }) {
   )
 }
 
-export default function Sidebar({ user, branding }: { user: User; branding?: BusinessBranding | null }) {
+export default function Sidebar({ user, branding, notifications }: { user: User; branding?: BusinessBranding | null; notifications?: NotificationItem[] }) {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -142,8 +151,9 @@ export default function Sidebar({ user, branding }: { user: User; branding?: Bus
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-56 bg-slate-900 flex-col h-full flex-shrink-0">
         {/* Logo / Branding */}
-        <div className="px-5 py-5 border-b border-slate-800">
+        <div className="px-5 py-5 border-b border-slate-800 flex items-center justify-between gap-2">
           <BrandingBox branding={branding} />
+          <NotificationBell initial={notifications ?? []} />
         </div>
 
         {/* Nav */}
@@ -216,15 +226,18 @@ export default function Sidebar({ user, branding }: { user: User; branding?: Bus
       {/* Mobile top header */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-slate-900 border-b border-slate-800">
         <BrandingBox branding={branding} />
-        <button
-          onClick={() => setMobileOpen(true)}
-          className="p-2 text-slate-400 hover:text-white transition-colors"
-          aria-label="Open menu"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <NotificationBell initial={notifications ?? []} />
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="p-2 text-slate-400 hover:text-white transition-colors"
+            aria-label="Open menu"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       {/* Mobile drawer overlay */}

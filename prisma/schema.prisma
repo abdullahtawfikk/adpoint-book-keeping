@@ -21,6 +21,7 @@ model User {
   teamMembers      TeamMember[]
   teamPayments     TeamPayment[]
   businessSettings BusinessSettings?
+  notifications    Notification[]
 }
 
 model BusinessSettings {
@@ -223,4 +224,17 @@ enum PaymentStatus {
   PAID
   PENDING
   CANCELLED
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   @default("payment")
+  message   String
+  invoiceId String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
 }

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import { prisma } from '@/lib/prisma'
 import { formatEGP, formatDate } from '@/lib/format'
+import PayNowButton from './PayNowButton'
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
   DRAFT:         { bg: 'bg-slate-100',   text: 'text-slate-600',   label: 'Draft' },
@@ -11,6 +12,8 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }>
   OVERDUE:       { bg: 'bg-red-100',     text: 'text-red-700',     label: 'Overdue' },
   CANCELLED:     { bg: 'bg-slate-100',   text: 'text-slate-400',   label: 'Cancelled' },
 }
+
+const PAYABLE_STATUSES = ['SENT', 'OVERDUE', 'PARTIALLY_PAID']
 
 export default async function PortalPage({
   params,
@@ -24,7 +27,12 @@ export default async function PortalPage({
     include: {
       invoices: {
         orderBy: { createdAt: 'desc' },
-        include: { phases: { select: { status: true, amount: true } } },
+        include: {
+          phases: {
+            orderBy: { sortOrder: 'asc' },
+            select: { id: true, name: true, amount: true, dueDate: true, status: true },
+          },
+        },
       },
     },
   })
@@ -43,9 +51,9 @@ export default async function PortalPage({
   const totalPaid = client.invoices
     .filter(inv => inv.status === 'PAID')
     .reduce((s, inv) => s + inv.total, 0)
-  // For SCHEDULED invoices, outstanding = sum of unpaid phases; otherwise full invoice total
+
   const outstanding = client.invoices
-    .filter(inv => inv.status !== 'PAID' && inv.status !== 'CANCELLED' && inv.status !== 'DRAFT')
+    .filter(inv => !['PAID', 'CANCELLED', 'DRAFT'].includes(inv.status))
     .reduce((s, inv) => {
       if (inv.phases.length > 0) {
         return s + inv.phases.filter(p => p.status === 'UNPAID').reduce((ps, p) => ps + p.amount, 0)
@@ -55,7 +63,7 @@ export default async function PortalPage({
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header bar */}
+      {/* Header */}
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-3xl mx-auto px-4 py-5 flex items-center gap-4">
           {businessSettings?.logoUrl ? (
@@ -88,21 +96,19 @@ export default async function PortalPage({
               <h1 className="text-xl font-semibold text-slate-900">{client.name}</h1>
               {client.company && <p className="text-slate-500 text-sm mt-0.5">{client.company}</p>}
             </div>
-            {outstanding > 0 && (
+            {outstanding > 0 ? (
               <div className="text-right">
                 <p className="text-xs text-slate-500 mb-1">Outstanding Balance</p>
                 <p className="text-2xl font-bold text-red-600">{formatEGP(outstanding)}</p>
               </div>
-            )}
-            {outstanding === 0 && totalInvoiced > 0 && (
+            ) : totalInvoiced > 0 ? (
               <div className="text-right">
                 <p className="text-xs text-slate-500 mb-1">Balance</p>
                 <p className="text-lg font-semibold text-emerald-600">All paid — thank you!</p>
               </div>
-            )}
+            ) : null}
           </div>
 
-          {/* Summary stats */}
           <div className="grid grid-cols-2 gap-3 mt-5 pt-5 border-t border-slate-100">
             <div>
               <p className="text-xs text-slate-500">Total Invoiced</p>
@@ -129,35 +135,94 @@ export default async function PortalPage({
             <div className="divide-y divide-slate-100">
               {client.invoices.map((inv) => {
                 const st = STATUS_STYLES[inv.status] ?? STATUS_STYLES.DRAFT
+                const isPayable = PAYABLE_STATUSES.includes(inv.status)
+                const hasSchedule = inv.phases.length > 0
+
                 return (
-                  <div key={inv.id} className="flex items-center justify-between gap-4 px-6 py-4 flex-wrap">
-                    {/* Left: number + title + due */}
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-slate-900">{inv.number}</p>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${st.bg} ${st.text}`}>
-                          {st.label}
-                        </span>
+                  <div key={inv.id} className="px-6 py-4">
+                    {/* Invoice header row */}
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-slate-900">{inv.number}</p>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${st.bg} ${st.text}`}>
+                            {st.label}
+                          </span>
+                        </div>
+                        {inv.title && <p className="text-xs text-slate-500 mt-0.5">{inv.title}</p>}
+                        <p className="text-xs text-slate-400 mt-0.5">Due {formatDate(inv.dueDate)}</p>
                       </div>
-                      {inv.title && <p className="text-xs text-slate-500 mt-0.5">{inv.title}</p>}
-                      <p className="text-xs text-slate-400 mt-0.5">Due {formatDate(inv.dueDate)}</p>
+
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <p className="text-sm font-semibold text-slate-900">{formatEGP(inv.total)}</p>
+                        <a
+                          href={`/api/portal/${token}/${inv.id}/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          PDF
+                        </a>
+                        {/* Pay Now for full / partial invoices (no schedule) */}
+                        {isPayable && !hasSchedule && (
+                          <PayNowButton
+                            portalToken={token}
+                            invoiceId={inv.id}
+                            amount={inv.total}
+                          />
+                        )}
+                      </div>
                     </div>
 
-                    {/* Right: amount + PDF */}
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <p className="text-sm font-semibold text-slate-900">{formatEGP(inv.total)}</p>
-                      <a
-                        href={`/api/portal/${token}/${inv.id}/pdf`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-medium border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        PDF
-                      </a>
-                    </div>
+                    {/* Payment schedule phases */}
+                    {hasSchedule && (
+                      <div className="mt-3 border border-slate-100 rounded-xl overflow-hidden">
+                        <div className="bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                          Payment Schedule
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          {inv.phases.map((phase) => {
+                            const now = new Date()
+                            const isOverdue = phase.status === 'UNPAID' && new Date(phase.dueDate) < now
+                            return (
+                              <div
+                                key={phase.id}
+                                className={`flex items-center justify-between gap-3 px-4 py-3 ${isOverdue ? 'bg-red-50/40' : ''}`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${phase.status === 'PAID' ? 'bg-emerald-500' : isOverdue ? 'bg-red-400' : 'bg-slate-300'}`} />
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-800">{phase.name}</p>
+                                    <p className={`text-xs mt-0.5 ${isOverdue ? 'text-red-500' : 'text-slate-400'}`}>
+                                      Due {formatDate(phase.dueDate)}{isOverdue ? ' · Overdue' : ''}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                  <p className="text-sm font-semibold text-slate-900">{formatEGP(phase.amount)}</p>
+                                  {phase.status === 'PAID' ? (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                                      Paid
+                                    </span>
+                                  ) : (
+                                    <PayNowButton
+                                      portalToken={token}
+                                      invoiceId={inv.id}
+                                      phaseId={phase.id}
+                                      amount={phase.amount}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -165,7 +230,6 @@ export default async function PortalPage({
           )}
         </div>
 
-        {/* Footer */}
         <p className="text-center text-xs text-slate-400 pb-6">
           {bizName}
           {businessSettings?.email ? ` · ${businessSettings.email}` : ''}
