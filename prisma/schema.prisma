@@ -22,6 +22,7 @@ model User {
   teamPayments     TeamPayment[]
   businessSettings BusinessSettings?
   notifications    Notification[]
+  proposals        Proposal[]
 }
 
 model BusinessSettings {
@@ -64,9 +65,11 @@ model Client {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  invoices       Invoice[]
-  portalMessages PortalMessage[]
-  paymentClaims  PortalPaymentClaim[]
+  invoices        Invoice[]
+  portalMessages  PortalMessage[]
+  paymentClaims   PortalPaymentClaim[]
+  disputes        InvoiceDispute[]
+  proposals       Proposal[]
 }
 
 model Invoice {
@@ -92,6 +95,9 @@ model Invoice {
   clientApproved   Boolean          @default(false) @map("client_approved")
   clientApprovedAt DateTime?        @map("client_approved_at")
 
+  isRetainer       Boolean          @default(false) @map("is_retainer")
+  retainerHours    Float?           @map("retainer_hours")
+
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -100,27 +106,100 @@ model Invoice {
   phases           InvoicePhase[]
   portalMessages   PortalMessage[]
   paymentClaims    PortalPaymentClaim[]
+  deliverables     Deliverable[]
+  disputes         InvoiceDispute[]
+  retainerEntries  RetainerEntry[]
 }
 
 model InvoicePhase {
-  id        String      @id @default(uuid())
-  invoiceId String
-  invoice   Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  id         String     @id @default(uuid())
+  invoiceId  String
+  invoice    Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
-  name      String
-  amount    Float
-  dueDate   DateTime
-  paidDate  DateTime?
-  status    PhaseStatus @default(UNPAID)
-  notes     String?
-  sortOrder Int         @default(0)
+  name       String
+  amount     Float
+  dueDate    DateTime
+  paidDate   DateTime?
+  status     PhaseStatus @default(UNPAID)
+  workStatus WorkStatus  @default(PENDING) @map("work_status")
+  notes      String?
+  sortOrder  Int         @default(0)
 
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
   paymentClaims PortalPaymentClaim[]
+  deliverables  Deliverable[]
 
   @@map("invoice_phases")
+}
+
+model Deliverable {
+  id          String       @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  phaseId     String?
+  phase       InvoicePhase? @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+
+  name        String
+  description String?
+  fileUrl     String
+  fileType    String?
+
+  createdAt   DateTime     @default(now())
+
+  @@map("deliverables")
+}
+
+model InvoiceDispute {
+  id        String   @id @default(uuid())
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  note      String
+  resolved  Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@map("invoice_disputes")
+}
+
+model Proposal {
+  id          String         @id @default(uuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  items       Json           @default("[]")
+  total       Float          @default(0)
+  status      ProposalStatus @default(DRAFT)
+  clientNote  String?
+  validUntil  DateTime?
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("proposals")
+}
+
+model RetainerEntry {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  description String
+  hours       Float?
+  amount      Float    @default(0)
+  date        DateTime
+
+  createdAt   DateTime @default(now())
+
+  @@map("retainer_entries")
 }
 
 model Payment {
@@ -199,11 +278,11 @@ model TeamPayment {
 }
 
 model PortalPaymentClaim {
-  id         String      @id @default(uuid())
+  id         String        @id @default(uuid())
   clientId   String
-  client     Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client     Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   invoiceId  String
-  invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice    Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   phaseId    String?
   phase      InvoicePhase? @relation(fields: [phaseId], references: [id], onDelete: SetNull)
 
@@ -234,6 +313,19 @@ model PortalMessage {
   @@map("portal_messages")
 }
 
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   @default("payment")
+  message   String
+  invoiceId String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
 enum InvoiceStatus {
   DRAFT
   SENT
@@ -252,6 +344,21 @@ enum PaymentStructure {
 enum PhaseStatus {
   UNPAID
   PAID
+}
+
+enum WorkStatus {
+  PENDING
+  IN_PROGRESS
+  UNDER_REVIEW
+  DELIVERED
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  CHANGES_REQUESTED
+  REJECTED
 }
 
 enum ExpenseCategory {
@@ -276,17 +383,4 @@ enum ClaimStatus {
   PENDING
   CONFIRMED
   REJECTED
-}
-
-model Notification {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String   @default("payment")
-  message   String
-  invoiceId String?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  @@map("notifications")
 }

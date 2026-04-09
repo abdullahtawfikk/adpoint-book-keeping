@@ -2,7 +2,8 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 function createPrismaClient() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
+  // max: 2 prevents saturating Supabase's pgbouncer connection limit
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL!, max: 2 })
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],

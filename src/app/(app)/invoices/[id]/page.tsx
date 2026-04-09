@@ -8,6 +8,8 @@ import StatusBadge from '@/components/ui/StatusBadge'
 import InvoiceStatusButton from '@/components/invoices/InvoiceStatusButton'
 import RecordPaymentModal from '@/components/invoices/RecordPaymentModal'
 import PhaseTimeline from '@/components/invoices/PhaseTimeline'
+import DeliverablesPanel from '@/components/invoices/DeliverablesPanel'
+import RetainerPanel from '@/components/invoices/RetainerPanel'
 import { getInvoiceDisplayStatus } from '@/lib/invoice-status'
 
 export default async function InvoiceDetailPage({
@@ -26,6 +28,8 @@ export default async function InvoiceDetailPage({
         items: true,
         payments: { orderBy: { date: 'desc' } },
         phases: { orderBy: { sortOrder: 'asc' } },
+        deliverables: { orderBy: { createdAt: 'asc' } },
+        retainerEntries: { orderBy: { date: 'asc' } },
       },
     }),
     prisma.businessSettings.findUnique({
@@ -216,11 +220,40 @@ export default async function InvoiceDetailPage({
               dueDate: p.dueDate,
               paidDate: p.paidDate,
               status: p.status,
+              workStatus: p.workStatus as 'PENDING' | 'IN_PROGRESS' | 'UNDER_REVIEW' | 'DELIVERED',
               sortOrder: p.sortOrder,
             }))}
           />
         </div>
       )}
+
+      {/* Deliverables */}
+      <div className="mb-6">
+        <DeliverablesPanel
+          invoiceId={invoice.id}
+          phases={invoice.phases.map(p => ({ id: p.id, name: p.name }))}
+          initialDeliverables={invoice.deliverables.map(d => ({
+            ...d,
+            createdAt: d.createdAt.toISOString(),
+          }))}
+        />
+      </div>
+
+      {/* Retainer */}
+      <div className="mb-6">
+        <RetainerPanel
+          invoiceId={invoice.id}
+          initialIsRetainer={invoice.isRetainer as boolean}
+          initialRetainerHours={invoice.retainerHours as number | null}
+          initialEntries={(invoice.retainerEntries as {id:string;description:string;hours:number|null;amount:number;date:Date}[]).map(e => ({
+            id: e.id,
+            description: e.description,
+            hours: e.hours,
+            amount: e.amount,
+            date: e.date.toISOString(),
+          }))}
+        />
+      </div>
 
       {/* Payment history (for non-scheduled or if there are manual payments) */}
       {invoice.payments.length > 0 && (

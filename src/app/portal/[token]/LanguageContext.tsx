@@ -51,6 +51,11 @@ interface Translations {
   cancelled: string
   phases: string
   phasesOf: string
+  contactUs: string
+  contactUsSubtitle: string
+  payStep1: string
+  payStep2: string
+  payStep2Sub: string
 }
 
 /* ── EN strings ─────────────────────────────────────────────── */
@@ -100,6 +105,11 @@ const en: Translations = {
   cancelled:          'Cancelled',
   phases:             'phases paid',
   phasesOf:           'of',
+  contactUs:          'Contact Us',
+  contactUsSubtitle:  'Questions, requests, or anything else',
+  payStep1:           'Pay via InstaPay',
+  payStep2:           "Already paid?",
+  payStep2Sub:        'Tap below to confirm your payment',
 }
 
 /* ── AR strings ─────────────────────────────────────────────── */
@@ -149,6 +159,11 @@ const ar: Translations = {
   cancelled:          'ملغي',
   phases:             'مراحل مدفوعة',
   phasesOf:           'من',
+  contactUs:          'تواصل معنا',
+  contactUsSubtitle:  'أسئلة، طلبات، أو أي شيء آخر',
+  payStep1:           'ادفع عبر InstaPay',
+  payStep2:           'دفعت بالفعل؟',
+  payStep2Sub:        'اضغط أدناه لتأكيد دفعك',
 }
 
 const STRINGS = { en, ar } as const

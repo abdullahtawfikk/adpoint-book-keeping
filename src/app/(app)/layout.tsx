@@ -1,28 +1,22 @@
-import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { redirect } from 'next/navigation'
+import { getAuthUser } from '@/lib/auth'
 import Sidebar from '@/components/layout/Sidebar'
 
-export default async function AppLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  // getAuthUser() is React cache()-d — if the page also calls getCurrentUserId()
+  // (which calls getAuthUser internally), the second call is a cache hit.
+  const user = await getAuthUser()
 
   const [branding, notifications] = await Promise.all([
     prisma.businessSettings.findUnique({
-      where: { userId: user.id },
+      where:  { userId: user.id },
       select: { businessName: true, logoUrl: true },
     }),
     prisma.notification.findMany({
-      where: { userId: user.id },
+      where:   { userId: user.id },
       orderBy: { createdAt: 'desc' },
-      take: 20,
-      select: { id: true, message: true, invoiceId: true, read: true, createdAt: true },
+      take:    10,
+      select:  { id: true, message: true, invoiceId: true, read: true, createdAt: true },
     }),
   ])
 

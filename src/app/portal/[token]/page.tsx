@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { getInvoiceDisplayStatus } from '@/lib/invoice-status'
 import PortalView from './PortalView'
-import type { Invoice } from './PortalView'
+import type { Invoice, Phase, PortalProposal } from './PortalView'
 
 export default async function PortalPage({
   params,
@@ -14,12 +14,20 @@ export default async function PortalPage({
   const client = await prisma.client.findUnique({
     where: { portalToken: token },
     include: {
+      proposals: {
+        where: { status: { not: 'DRAFT' } },
+        orderBy: { createdAt: 'desc' },
+      },
       invoices: {
         orderBy: { createdAt: 'desc' },
         include: {
           phases: {
             orderBy: { sortOrder: 'asc' },
-            select: { id: true, name: true, amount: true, dueDate: true, status: true },
+            select: { id: true, name: true, amount: true, dueDate: true, status: true, workStatus: true },
+          },
+          deliverables: {
+            orderBy: { createdAt: 'asc' },
+            select: { id: true, name: true, description: true, fileUrl: true, fileType: true },
           },
         },
       },
@@ -52,6 +60,14 @@ export default async function PortalPage({
       amount: p.amount,
       dueDate: p.dueDate.toISOString(),
       status: p.status,
+      workStatus: p.workStatus as Phase['workStatus'],
+    })),
+    deliverables: inv.deliverables.map((d) => ({
+      id: d.id,
+      name: d.name,
+      description: d.description,
+      fileUrl: d.fileUrl,
+      fileType: d.fileType,
     })),
   }))
 
@@ -70,6 +86,18 @@ export default async function PortalPage({
       return sum + inv.total
     }, 0)
 
+  const proposals: PortalProposal[] = client.proposals.map(p => ({
+    id:          p.id,
+    title:       p.title,
+    description: p.description,
+    items:       p.items as unknown as PortalProposal['items'],
+    total:       p.total,
+    status:      p.status as PortalProposal['status'],
+    clientNote:  p.clientNote,
+    validUntil:  p.validUntil?.toISOString() ?? null,
+    createdAt:   p.createdAt.toISOString(),
+  }))
+
   return (
     <PortalView
       clientName={client.name}
@@ -80,6 +108,7 @@ export default async function PortalPage({
       bizLogoUrl={settings?.logoUrl ?? null}
       portalToken={token}
       invoices={invoices}
+      proposals={proposals}
       totalInvoiced={totalInvoiced}
       totalPaid={totalPaid}
       outstanding={outstanding}

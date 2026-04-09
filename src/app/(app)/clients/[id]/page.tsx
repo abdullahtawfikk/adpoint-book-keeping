@@ -5,6 +5,12 @@ import { prisma } from '@/lib/prisma'
 import { formatEGP, formatDate } from '@/lib/format'
 import StatusBadge from '@/components/ui/StatusBadge'
 import ClientDetailActions from '@/components/clients/ClientDetailActions'
+import PortalInbox, {
+  type SerializedClaim,
+  type SerializedMessage,
+  type SerializedDispute,
+} from '@/components/clients/PortalInbox'
+import ProposalsPanel, { type SerializedProposal } from '@/components/clients/ProposalsPanel'
 
 export default async function ClientDetailPage({
   params,
@@ -21,27 +27,92 @@ export default async function ClientDetailPage({
         include: { items: true },
         orderBy: { createdAt: 'desc' },
       },
+      paymentClaims: {
+        orderBy: { createdAt: 'desc' },
+        include: {
+          invoice: { select: { id: true, number: true, title: true } },
+          phase:   { select: { id: true, name: true } },
+        },
+      },
+      portalMessages: {
+        orderBy: { createdAt: 'asc' },
+      },
+      disputes: {
+        orderBy: { createdAt: 'desc' },
+        include: {
+          invoice: { select: { id: true, number: true, title: true } },
+        },
+      },
+      proposals: {
+        orderBy: { createdAt: 'desc' },
+      },
     },
   })
 
   if (!client) notFound()
 
   const totalInvoiced = client.invoices.reduce((sum, inv) => sum + inv.total, 0)
-  const paidInvoices = client.invoices.filter((inv) => inv.status === 'PAID')
-  const totalPaid = paidInvoices.reduce((sum, inv) => sum + inv.total, 0)
-  const outstanding = totalInvoiced - totalPaid
+  const paidInvoices  = client.invoices.filter((inv) => inv.status === 'PAID')
+  const totalPaid     = paidInvoices.reduce((sum, inv) => sum + inv.total, 0)
+  const outstanding   = totalInvoiced - totalPaid
+
+  // Serialize dates for client components
+  const claims: SerializedClaim[] = client.paymentClaims.map(c => ({
+    id:         c.id,
+    amount:     c.amount,
+    receiptUrl: c.receiptUrl,
+    note:       c.note,
+    status:     c.status as 'PENDING' | 'CONFIRMED' | 'REJECTED',
+    createdAt:  c.createdAt.toISOString(),
+    invoice:    c.invoice,
+    phase:      c.phase,
+  }))
+
+  const messages: SerializedMessage[] = client.portalMessages.map(m => ({
+    id:         m.id,
+    content:    m.content,
+    fromClient: m.fromClient,
+    invoiceId:  m.invoiceId,
+    createdAt:  m.createdAt.toISOString(),
+  }))
+
+  const disputes: SerializedDispute[] = client.disputes.map(d => ({
+    id:        d.id,
+    note:      d.note,
+    resolved:  d.resolved,
+    createdAt: d.createdAt.toISOString(),
+    invoice:   d.invoice,
+  }))
+
+  const proposals: SerializedProposal[] = client.proposals.map(p => ({
+    id:          p.id,
+    title:       p.title,
+    description: p.description,
+    items:       p.items as unknown as SerializedProposal['items'],
+    total:       p.total,
+    status:      p.status as SerializedProposal['status'],
+    clientNote:  p.clientNote,
+    validUntil:  p.validUntil?.toISOString() ?? null,
+    createdAt:   p.createdAt.toISOString(),
+  }))
+
+  // Mark unread client messages as read — fire and forget, doesn't block render
+  void prisma.portalMessage.updateMany({
+    where: { clientId: client.id, fromClient: true, read: false },
+    data:  { read: true },
+  })
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl">
+    <div className="p-6 md:p-8 max-w-4xl space-y-6">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-slate-400 mb-6">
+      <div className="flex items-center gap-2 text-sm text-slate-400">
         <Link href="/clients" className="hover:text-slate-700">Clients</Link>
         <span>/</span>
         <span className="text-slate-700">{client.name}</span>
       </div>
 
       {/* Client card */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-xl font-semibold text-slate-900">{client.name}</h1>
@@ -76,12 +147,16 @@ export default async function ClientDetailPage({
               <p className="mt-3 text-sm text-slate-500 bg-slate-50 rounded-lg px-3 py-2">{client.notes}</p>
             )}
           </div>
-          <ClientDetailActions client={client} hasPaidInvoices={paidInvoices.length > 0} portalToken={client.portalToken ?? null} />
+          <ClientDetailActions
+            client={client}
+            hasPaidInvoices={paidInvoices.length > 0}
+            portalToken={client.portalToken ?? null}
+          />
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <p className="text-xs text-slate-500 mb-1">Total Invoiced</p>
           <p className="text-lg font-semibold text-slate-900">{formatEGP(totalInvoiced)}</p>
@@ -97,6 +172,20 @@ export default async function ClientDetailPage({
           </p>
         </div>
       </div>
+
+      {/* Proposals */}
+      <ProposalsPanel clientId={client.id} initialProposals={proposals} />
+
+      {/* Portal Inbox */}
+      {client.portalToken && (
+        <PortalInbox
+          clientId={client.id}
+          clientName={client.name}
+          initialClaims={claims}
+          initialMessages={messages}
+          initialDisputes={disputes}
+        />
+      )}
 
       {/* Invoices */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">

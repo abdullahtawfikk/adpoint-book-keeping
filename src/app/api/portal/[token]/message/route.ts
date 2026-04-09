@@ -15,10 +15,12 @@ export async function GET(
   })
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  const general = searchParams.get('general')
+
   const messages = await prisma.portalMessage.findMany({
     where: {
       clientId:  client.id,
-      ...(invoiceId ? { invoiceId } : {}),
+      ...(general ? { invoiceId: null } : invoiceId ? { invoiceId } : {}),
     },
     orderBy: { createdAt: 'asc' },
     select: { id: true, content: true, fromClient: true, createdAt: true },
